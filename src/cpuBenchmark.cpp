@@ -113,6 +113,7 @@ void my_test(const char* name) {
 	// Addition
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v += v9;
 		v += v0;
 		v += v1;
 		v += v2;
@@ -132,6 +133,7 @@ void my_test(const char* name) {
 	// Subtraction
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v -= v9;
 		v -= v0;
 		v -= v1;
 		v -= v2;
@@ -151,6 +153,7 @@ void my_test(const char* name) {
 	// Addition/Subtraction
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v += v9;
 		v += v0;
 		v -= v1;
 		v += v2;
@@ -170,6 +173,7 @@ void my_test(const char* name) {
 	// Multiply
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v *= v9;
 		v *= v0;
 		v *= v1;
 		v *= v2;
@@ -189,6 +193,7 @@ void my_test(const char* name) {
 	// Divide
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v /= v9;
 		v /= v0;
 		v /= v1;
 		v /= v2;
@@ -208,6 +213,7 @@ void my_test(const char* name) {
 	// Multiply/Divide
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v *= v9;
 		v *= v0;
 		v /= v1;
 		v *= v2;
@@ -227,6 +233,7 @@ void my_test(const char* name) {
 	// Square/SquareRoot/Multiply
 	t1 = mygettime();
 	for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+		v *= sqrt(v9*v9);
 		v *= sqrt(v0*v0);
 		v *= sqrt(v1*v1);
 		v *= sqrt(v2*v2);
