@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+
+# Repo direct ignore
+*.pdf
+*.ps
+*.tgz
