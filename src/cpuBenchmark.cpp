@@ -7,7 +7,6 @@
 #include <sys/time.h>
 #endif
 #include <cmath>
-#include <time.h>
 #include <cstdlib>
 
 #define CHAR_BUFFER_SIZE 1024
