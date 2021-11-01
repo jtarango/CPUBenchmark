@@ -75,6 +75,8 @@ BDIR=$(CURRENT_PATH)builds
 # Test harnesses
 TEST_CPP_BIN=cpuBenchmark
 TEST_CPP_FILE=$(SRCDIR)/cpuBenchmark.cpp
+TEST_PARALLEL_CPP_BIN=cpuBenchmarkParallel
+TEST_PARALLEL_CPP_FILE=$(SRCDIR)/cpuBenchmarkParallel.cpp
 
 # Lib Dir
 LIBDIR=$(BDIR)/libs
@@ -335,6 +337,11 @@ cpuBenchmarkFaster: create_dirs
 	$(COMPILER)            $(COMPILEFLAGS)     -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: cpuBenchmarkFaster
+
+cpuBenchmarkParallel: create_dirs
+	$(info Compile cpuBenchmark testharness)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
+.PHONY: cpuBenchmark
 
 ########################################################################################################################
 # Debugging make file options. Only for developer usage.

@@ -15,7 +15,12 @@
 #include <cmath>
 #include <cstdlib>
 #include <pthread.h>
-#include<errno.h>
+#include <errno.h>
+#include <cstdint>
+#include <vector>
+#include <string.h>
+#include <typeinfo>
+#include <iostream>
 
 #define MAX_THREADS 32
 #define CHAR_BUFFER_SIZE 1024
@@ -33,7 +38,7 @@ uint32_t getNumCores(void) {
 #else
   coreCount = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
-  return
+  return coreCount;
 }
 
 int printFullPath(const char *partialPath) {
@@ -66,16 +71,18 @@ double mygettime(void) {
 # else
   struct timeval tv;
   if (gettimeofday(&tv, 0) < 0) {
-    perror("oops");
+    fprintf(stderr, "Error on line %d : %s.\n", __LINE__, strerror(errno));
   }
   return (double) tv.tv_sec + (0.000001 * (double) tv.tv_usec);
 # endif
 }
 
 template<typename Type>
-void my_test(const char *name) {
+void my_test(void) {
+  Type inType;
+  char *name = (char *)(typeid(inType).name());
   double t1;
-  volatile Type v_add, v_sub, v_subadd, v_mul, v_div, v_muldiv, v_sqsqrtmul = 0;
+  volatile Type v_add, v_sub, v_addsub, v_subadd, v_mul, v_div, v_muldiv, v_sqsqrtmul = 0;
   // Do not use constants or repeating values
   //  to avoid loop unroll optimizations.
   // All values >0 to avoid division by 0
@@ -273,11 +280,21 @@ void my_test(const char *name) {
           (unsigned long long int) (DATASET_SIZE * 10 * 3), (int) v_sqsqrtmul & 1);
 }
 
-// Function pointer alias
-typedef void *(*func_ptr)(void *);
+typedef struct StructBinaryOperation
+{
+  template <typename typeResult, typename typeS, typename typeT, typename typeU, typename typeV> typeResult operator()(typeResult (*binaryOperation )(typeS, typeT), typeU u, typeV v)
+  {
+    return binaryOperation(u,v);
+  }
+} StructBinaryOperation_t;
 
-// Function pointer list
-func_ptr myTestFuncs[] = {
+// Function pointer alias
+typedef StructBinaryOperation_t func_ptr;
+// typedef void (*func_ptr)(void);
+
+// template <typename T, typename U>
+// using fPtrType = T(*)(U);
+/*{
   my_test<volatile signed char>("signed char"),
   my_test<volatile unsigned char>("unsigned char"),
   my_test<volatile signed short>("signed short"),
@@ -291,15 +308,73 @@ func_ptr myTestFuncs[] = {
   my_test<volatile float>("float"),
   my_test<volatile double>("double"),
   my_test<volatile long double>("long double")};
+ */
+template<typename Type>
+Type pop_front(std::vector<Type>& v){
+  Type dValue;
+  if (!v.empty()) {
+    dValue = v.front();
+    v.erase(v.begin());
+  }
+  else {
+    printf("pop_front use warning is empty");
+  }
+  return dValue;
+}
+
+template<typename Type>
+Type pop_back(std::vector<Type>& v) {
+  Type dValue;
+  if (!v.empty()) {
+    dValue = v.pop_back();
+  }
+  else {
+    printf("pop_back use warning is empty");
+  }
+  return dValue;
+}
+
+template<typename Type>
+void push_front(std::vector<Type>& v, Type val) {
+  v.insert(v.begin(), 1, val);
+  return;
+}
+
+template<typename Type>
+void push_back(std::vector<Type>& v, Type val) {
+  v.insert(v.end(), 1, val);
+  return;
+}
 
 int main() {
-  uint32_t functionPointerListSize = sizeof(myTestFuncs) / sizeof(myTestFuncs[0]);
-  pthread_t threadContext = new pthread_t[functionPointerListSize];
-  size_t threadID = new size_t[functionPointerListSize];
-  vector <size_t> notStartedQueue, inProgressQueue, completedQueue, errorQueue;
-  uint32_t coreCount = getNumCores();
-  uint32_t activeThreadCount = 0;
-  uint32_t threadStatus;
+  std::vector<size_t> notStartedQueue;
+  std::vector<size_t> inProgressQueue;
+  std::vector<size_t> completedQueue;
+  std::vector<size_t> errorQueue;
+  size_t coreCount = getNumCores();
+  size_t activeThreadCount = 0;
+  size_t threadStatus, threadIndex;
+  size_t notStartedSize, inProgressSize;
+
+  // Function pointer list
+  func_ptr myTestFuncs[] = {
+    my_test<volatile signed char>,
+    my_test<volatile unsigned char>,
+    my_test<volatile signed short>,
+    my_test<volatile unsigned short>,
+    my_test<volatile signed int>,
+    my_test<volatile unsigned int>,
+    my_test<volatile signed long>,
+    my_test<volatile unsigned long>,
+    my_test<volatile signed long long>,
+    my_test<volatile unsigned long long>,
+    my_test<volatile float>,
+    my_test<volatile double>,
+    my_test<volatile long double>
+  };
+  size_t functionPointerListSize = sizeof(myTestFuncs) / sizeof(myTestFuncs[0]);
+  pthread_t *threadContext = new pthread_t[functionPointerListSize];
+  size_t *threadID = new size_t[functionPointerListSize];
 
   // Simple delete of old file.
   writingFileContext = fopen(filenameCPUData, "w");
@@ -313,7 +388,7 @@ int main() {
   // Prepare queue with function pointer index
   for (size_t i = 0; i < functionPointerListSize; i++) {
     threadID[i] = i;
-    notStartedQueue.push_back(i);
+    push_back(notStartedQueue, i);
   }
 
   // Loop to continue processing while threads are moved from "not started" to "in progress" then "completed".
@@ -324,20 +399,20 @@ int main() {
       notStartedSize = notStartedQueue.size();
       // Prepare thread to be moved from notStarted to inProgress.
       while ((notStartedSize > 0) && (activeThreadCount < coreCount)) {
-        threadIndex = notStartedQueue.pop_front();
+        threadIndex = pop_front(notStartedQueue);
         threadStatus = pthread_create(&threadContext[threadIndex],
                                       NULL,
                                       myTestFuncs[threadIndex],
                                       &threadID[threadIndex]);
         if (0 == threadStatus) {
-          inProgressQueue.push_back(threadIndex)
-          threadCount++;
+          push_back(inProgressQueue, threadIndex);
+          activeThreadCount++;
         } else if (EINVAL == threadStatus || EPERM == threadStatus) {
-          perror("Cannot create thread %d: invalid setting or permission.", threadIndex);
-          errorQueue.push_front(threadIndex);
+          fprintf(stderr, "Error on line %d : %s\n.Cannot create thread %ld: invalid setting or permission.", __LINE__, strerror(errno), threadIndex);
+          push_front(errorQueue, threadIndex);
         } else { // (threadStatus == EAGAIN
-          printf("Cannot create thread %d: resource limited.", threadIndex);
-          notStartedQueue.push_back(threadIndex);
+          printf("Cannot create thread %ld: resource limited.", threadIndex);
+          push_back(notStartedQueue, threadIndex);
         }
       }
       notStartedSize--;
@@ -350,16 +425,18 @@ int main() {
     if (false == inProgressQueue.empty()) {
       inProgressSize = inProgressQueue.size();
       while (inProgressSize > 0) {
-        threadIndex = inProgressQueue.pop_front();
-        threadStatus == pthread_tryjoin_np(inProgress[j], NULL)
+        threadIndex = pop_front(inProgressQueue);
+        threadStatus = pthread_tryjoin_np(inProgressQueue[threadIndex], NULL);
         if (EBUSY == threadStatus) {
-          inProgressQueue.push_back(threadIndex);
-        } else if (EINVAL == threadStatus || ETIMEDOUT == threadStatus) {
-          perror("Thread %d check status timeout or invalid.", threadIndex);
-          errorQueue.push_front(threadIndex);
-        } else {
-          printf("Thread %d complete.", threadIndex);
-          completedQueue.push_back(threadIndex)
+          push_back(inProgressQueue, threadIndex);
+        }
+        else if (EINVAL == threadStatus || ETIMEDOUT == threadStatus) {
+          fprintf(stderr, "Error on line %d : %s.\nThread %ld check status timeout or invalid.", __LINE__, strerror(errno), threadIndex);
+          push_front(errorQueue, threadIndex);
+        }
+        else {
+          printf("Thread %ld complete.", threadIndex);
+          push_back(completedQueue, threadIndex);
         }
         inProgressSize--;
       }
