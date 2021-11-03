@@ -23,9 +23,18 @@ extern "C++" {
 #ifndef _CPUBENCHMARKPARALLEL_CPP_
 #define _CPUBENCHMARKPARALLEL_CPP_
 
+// Ignore data flow analysis is to complex in IDE
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCDFAInspection"
+
+// @note uncomment to disable assert()
+// #define NDEBUG
+
+#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <cinttypes>
 #include <errno.h>
 #include <iostream>
 #include <limits.h>
@@ -37,6 +46,8 @@ extern "C++" {
 #include <type_traits>
 #include <vector>
 
+#define __STDC_LIMIT_MACROS
+
 #ifdef _WIN32
 #include <sys/timeb.h>
 #include <windows.h>
@@ -46,32 +57,20 @@ extern "C++" {
 #endif // _WIN32
 
 #define CHAR_BUFFER_SIZE 1024
-#define PATH_MAX 4096 \
+#define PATH_MAX 4096
+
+// Use (void) to silent unused warnings.
+#define assertm(exp, msg) assert(((void)msg, exp))
+
 // @todo remove and modularize
 volatile size_t DATASET_SIZE = 4294967291; // 100000007;
 const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
 FILE *writingFileContext = (FILE *)calloc(1, sizeof(FILE));
 
-// Ignore data flow analysis is to complex in IDE
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCDFAInspection"
-
 /*======================================================================================================================
- * Private Functions
+ * Functions prototypes
  * ===================================================================================================================*/
-inline void errorAtLine(size_t threadIndex);
-void showUsage(void);
-void printArgs(int argc, char *argv[]);
-int32_t printFullPath(const char *partialPath);
-uint32_t getNumCores(void);
-double getTime(void);
-// Template functions
-template<typename Type> void* my_test(void *args);
-template<typename Type> void push_front(std::vector<Type> &v, Type val);
-template<typename Type> void push_back(std::vector<Type> &v, Type val);
-template<typename Type> Type pop_front(std::vector<Type> &v);
-template<typename Type> Type pop_back(std::vector<Type> &v);
-
+// Main execution in library or standalone execution mode.
 #ifndef LIBRARY_MODE
 int main(int argc, char *argv[]);
 #elif (LIBRARY_MODE >= 0)
@@ -82,22 +81,142 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]);
 int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]);
 #endif // LIBRARY_MODE
 
-/*======================================================================================================================
- * Struct for template function pointers
- * ===================================================================================================================*/
-typedef struct StructBinaryOperation {
-  template<typename typeResult, typename typeS, typename typeT, typename typeU, typename typeV>
-  typeResult operator()(typeResult (*binaryOperation )(typeS, typeT), typeU u, typeV v) {
-    return binaryOperation(u, v);
-  }
-} StructBinaryOperation_t;
+// Helper functions.
+inline void errorAtLine(void);
+inline void errorAtLineThread(size_t threadIndex);
+void testTypes(void);
+void showUsage(void);
+void printArgs(int argc, char *argv[]);
+int32_t printFullPath(const char *partialPath);
+uint32_t getNumCores(void);
+double getTime(void);
 
-///////
-// Intel Arithmetic
+// Template functions.
+template<typename Type> void* my_test(void *args);
+template<typename Type> void push_front(std::vector<Type> &v, Type val);
+template<typename Type> void push_back(std::vector<Type> &v, Type val);
+template<typename Type> Type pop_front(std::vector<Type> &v);
+template<typename Type> Type pop_back(std::vector<Type> &v);
+template<class classType> classType gauss_rand(int select);
+template<class classType> classType typelessValid(int select);
+
+// Pass pointer-to-template-function as function argument.
+// Arithmetic Call template method on class template parameters.
+// @note typedef template function pointer
+template<template<typename> class tFunctor, class classType>
+classType perform(classType a, classType b);
+// Arithmetic functions - ISA Arithmetic support
 // https://web.archive.org/web/20130929035331/http://download-software.intel.com/sites/default/files/319433-015.pdf
 // https://www.felixcloutier.com/x86/
 // Supported: +, -, *, /
 // Not Supported (yet): square root, reciprocal, exponential, Sine, Cosine, Multiply-Add, Multiply-Subtract
+template<class classType> classType typelessSubtraction(classType u, classType v);
+template<class classType> classType typelessAddition(classType u, classType v);
+template<class classType> classType typelessMultiplication(classType u, classType v);
+template<class classType> classType typelessDivision(classType u, classType v);
+
+// Pass pointer-to-template-function as function argument
+// Arithmetic Print Call template method on class template parameters
+template<template<typename> class tPFunctor, class classType>
+  classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+// Print function for Arithmetic
+template <class classType>
+classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+
+/*======================================================================================================================
+ * Typedef template function pointers for pthreads_create
+ * ===================================================================================================================*/
+// Code reads inside out such that *func_ptr is the function declaration. func_ptr is a function pointer such that the
+// first void* is the return data and takes in the second void*.
+typedef void* (*func_ptr)(void*);
+
+// @todo disabled and not in use
+/*======================================================================================================================
+ * Struct for template function pointers
+ * ===================================================================================================================*/
+// @note investigate deconstructing function pointers in a C++ templates for more generic usage.
+// Function passed as template argument
+// typedef struct StructBinaryOperation {
+//  template<typename typeResult, typename typeS, typename typeT, typename typeU, typename typeV>
+//  typeResult operator()(typeResult (*binaryOperation )(typeS, typeT), typeU u, typeV v) {
+//    return binaryOperation(u, v);
+//  }
+//} StructBinaryOperation_t;
+
+/*======================================================================================================================
+ * Template function pointer helpers
+ * ===================================================================================================================*/
+// @todo disabled and not in use
+// Uses pointer to a function that takes a void and returns void. Explicitly gives the template argument for fakeTemplateFunction
+// void topFunctionPointer(returnData (*functionPointer)(type *arguments)) {}
+// Example: return_type=char*, input_type=int*
+//          void headlessFunction(char* (*pf)(int*)) {}
+// void headlessFunction(void (*pf)(void)) {}
+
+// Template function pointer that takes a template type
+// template<typename Type> void fakeTemplateFunction(Type *) {}
+
+// Function that wants the function pointer as an argument can itself be a template.
+// template<typename Type> void gateFunction(void (*pf)(Type *)) {}
+
+// Taking the address of a generated function template
+// I.E. Usages and explanation
+// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
+// headlessFunction(&fakeTemplateFunction); // Type deduction
+// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
+// gateFunction(&fakeTemplateFunction<int>); // Type deduction
+// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
+// void headlessFunctionDux(float (*pf)(float)) {}
+
+// Template function pointer that takes a template type
+// template<typename Type> Type fakeTemplateFunctionDux(Type *) {}
+
+// Function that wants the function pointer as an argument can itself be a template.
+// template<typename Type> Type gateFunctionDux(void (*pf)(Type *)) {}
+// I.E. Usages and explanation
+// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
+// headlessFunction(&fakeTemplateFunction); // Type deduction
+// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
+// gateFunction(&fakeTemplateFunction<int>); // Type deduction
+// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
+
+//template<class ClassType> struct ExecFunc {
+//  typedef void(*type)(ClassType);
+//};
+
+//template <typename T, typename R, typename ...Args>
+//R proxyCall(T & obj, R (T::*mf)(Args...), Args &&... args)
+//{
+//  return (obj.*mf)(std::forward<Args>(args)...);
+//} // proxycall(obj, &hello::f)
+
+// typedef {
+//   void (*)(void);
+//} fptr_t;
+// Function pointer alias
+//typedef StructBinaryOperation_t func_ptr;
+// typedef void (*func_ptr <typename>)(void);
+// template <typename T, typename U>
+// using fPtrType = T(*)(U);
+/*{
+  my_test<volatile signed char>("signed char"),
+  my_test<volatile unsigned char>("unsigned char"),
+  my_test<volatile signed short>("signed short"),
+  my_test<volatile unsigned short>("unsigned short"),
+  my_test<volatile signed int>("signed int"),
+  my_test<volatile unsigned int>("unsigned int"),
+  my_test<volatile signed long>("signed long"),
+  my_test<volatile unsigned long>("unsigned long"),
+  my_test<volatile signed long long>("signed long long"),
+  my_test<volatile unsigned long long>("unsigned long long"),
+  my_test<volatile float>("float"),
+  my_test<volatile double>("double"),
+  my_test<volatile long double>("long double")};
+ */
+
+/*======================================================================================================================
+ * Function definition and implementation
+ * ===================================================================================================================*/
 template<class classType>
 classType typelessSubtraction(classType u, classType v) {
   return u - v;
@@ -167,12 +286,11 @@ template<template<typename> class tPFunctor, class classType>
 classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE])
 {
   // Equivalent to this:
-  // tFunctor<classType> functor;
+  // tPFunctor<classType> functor;
   // return functor(inA, inB, outR, operationName);
   return tPFunctor<classType>()(inA, inB, outR, operationName);
 }
-///////
-// template<class classType>
+// Note: using std::enable_if with anonymous type parameters
 // template <class classType, std::enable_if_t<!std::is_arithmetic<classType>::value>* = nullptr>
 template <class classType>
 classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
@@ -249,9 +367,8 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
       printf("Operation=%s, A=%Lf, B=%Lf, Result= %Lf", operationName, (long double)inA, (long double)inB, (long double)outR);
     }
     else{
-      printf("Operation=%s, A=unknown, B=unknown, Result= unknown", operationName);
+      printf("Operation=%s, A=unknown, B=unknown, Result=unknown", operationName);
     }
-
   }
   return outR;
 }
@@ -291,84 +408,6 @@ void testTypes(void){
   typelessTest<double>(3.14, 42);
 }
 
-/*======================================================================================================================
- * Template function pointer helpers
- * ===================================================================================================================*/
-// Uses pointer to a function that takes a void and returns void. Explicitly gives the template argument for fakeTemplateFunction
-// void topFunctionPointer(returnData (*functionPointer)(type *arguments)) {}
-// Example: return_type=char*, input_type=int*
-//          void headlessFunction(char* (*pf)(int*)) {}
-void headlessFunction(void (*pf)(void)) {}
-
-// Template function pointer that takes a template type
-template<typename Type>
-void fakeTemplateFunction(Type *) {}
-
-// Function that wants the function pointer as an argument can itself be a template.
-template<typename Type>
-void gateFunction(void (*pf)(Type *)) {}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// I.E. Usages and explanation
-// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
-// headlessFunction(&fakeTemplateFunction); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
-// gateFunction(&fakeTemplateFunction<int>); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void headlessFunctionDux(float (*pf)(float)) {}
-
-// Template function pointer that takes a template type
-template<typename Type>
-Type fakeTemplateFunctionDux(Type *) {}
-
-// Function that wants the function pointer as an argument can itself be a template.
-template<typename Type>
-Type gateFunctionDux(void (*pf)(Type *)) {}
-// I.E. Usages and explanation
-// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
-// headlessFunction(&fakeTemplateFunction); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
-// gateFunction(&fakeTemplateFunction<int>); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Code reads inside out such that *func_ptr is the function declaration. func_ptr is a function pointer such that the
-// first void* is the return data and takes in the second void*.
-typedef void* (*func_ptr)(void*);
-
-template<class ClassType> struct ExecFunc {
-  typedef void(*type)(ClassType);
-};
-
-template <typename T, typename R, typename ...Args>
-R proxyCall(T & obj, R (T::*mf)(Args...), Args &&... args)
-{
-  return (obj.*mf)(std::forward<Args>(args)...);
-} // proxycall(obj, &hello::f)
-// typedef {
-//   void (*)(void);
-//} fptr_t;
-// Function pointer alias
-//typedef StructBinaryOperation_t func_ptr;
-// typedef void (*func_ptr <typename>)(void);
-// template <typename T, typename U>
-// using fPtrType = T(*)(U);
-/*{
-  my_test<volatile signed char>("signed char"),
-  my_test<volatile unsigned char>("unsigned char"),
-  my_test<volatile signed short>("signed short"),
-  my_test<volatile unsigned short>("unsigned short"),
-  my_test<volatile signed int>("signed int"),
-  my_test<volatile unsigned int>("unsigned int"),
-  my_test<volatile signed long>("signed long"),
-  my_test<volatile unsigned long>("unsigned long"),
-  my_test<volatile signed long long>("signed long long"),
-  my_test<volatile unsigned long long>("unsigned long long"),
-  my_test<volatile float>("float"),
-  my_test<volatile double>("double"),
-  my_test<volatile long double>("long double")};
- */
-
 #ifndef LIBRARY_MODE
 int main(int argc, char *argv[])
 #elif (LIBRARY_MODE >= 0)
@@ -391,6 +430,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   size_t notStartedSize, inProgressSize;
 
   // Function pointer list
+  // @todo C++: Generate array to function pointers in a loop.
   func_ptr myTestFuncs[] = {
     (&my_test<volatile signed char>),
     (&my_test<volatile unsigned char>),
@@ -438,6 +478,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
       // Prepare thread to be moved from notStarted to inProgress.
       while ((notStartedSize > 0) && (activeThreadCount < coreCount)) {
         threadIndex = pop_front(notStartedQueue);
+        // Passing function pointer to arg of pthread_create function
         threadStatus = pthread_create(&threadContext[threadIndex],
                                       NULL,
                                       myTestFuncs[threadIndex],
@@ -496,11 +537,33 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 /*======================================================================================================================
  * Helper functions
  * ===================================================================================================================*/
-inline void errorAtLine(size_t threadIndex){
-  fprintf(stderr, "Error on line %d : %s\n.Cannot create thread %ld: invalid setting or permission.",
+inline void errorAtLineThread(size_t threadIndex){
+  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
+  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
+  fprintf(stderr, "Error in %s at line %d with %s.\n"
+                  "PRETTY_FUNCTION=%s\n"
+                  "CONTEXT=%s.\n"
+                  "Cannot create thread %ld: invalid setting or permission.",
+          __FILE__,
           __LINE__,
+          __func__,
+          __PRETTY_FUNCTION__,
           strerror(errno),
           threadIndex);
+  return;
+}
+
+inline void errorAtLine(void){
+  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
+  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
+  fprintf(stderr, "Error in %s at line %d with %s.\n"
+                  "PRETTY_FUNCTION=%s\n"
+                  "CONTEXT=%s.\n",
+          __FILE__,
+          __LINE__,
+          __func__,
+          __PRETTY_FUNCTION__,
+          strerror(errno));
   return;
 }
 
@@ -532,20 +595,6 @@ void printArgs(int argc, char *argv[]) {
   return;
 }
 
-uint32_t getNumCores(void) {
-  uint32_t coreCount;
-#if defined(_WIN32) | defined(_WIN64)
-  SYSTEM_INFO sysinfo;
-  GetSystemInfo(&sysinfo);
-  coreCount = sysinfo.dwNumberOfProcessors;
-#elif !defined(__linux__) // Not Linux
-  coreCount = 1;
-#else // Linux OS
-  coreCount = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-  return coreCount;
-}
-
 int32_t printFullPath(const char *partialPath) {
   int32_t rc = 0;
   char *fullPath = (char *) calloc(PATH_MAX, sizeof(char));
@@ -566,6 +615,20 @@ int32_t printFullPath(const char *partialPath) {
   }
 #endif
   return rc;
+}
+
+uint32_t getNumCores(void) {
+  uint32_t coreCount;
+#if defined(_WIN32) | defined(_WIN64)
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo(&sysinfo);
+  coreCount = sysinfo.dwNumberOfProcessors;
+#elif !defined(__linux__) // Not Linux
+  coreCount = 1;
+#else // Linux OS
+  coreCount = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+  return coreCount;
 }
 
 double getTime(void) {
@@ -829,6 +892,172 @@ template<typename Type>
 void push_back(std::vector<Type> &v, Type val) {
   v.insert(v.end(), 1, val);
   return;
+}
+
+/* Random number generator.
+ * Generate a uniformly distributed random value.
+ * References:
+ *  Knuth Sec. 3.4.1 p. 117
+ *  Box and Muller, 'A Note on the Generation of Random Normal Deviates'
+ *  Marsaglia and Bray, 'A Convenient Method for Generating Normal Variables'
+ *  Abramowitz and Stegun, Handbook of Mathematical Functions
+ *  Press et al., Numerical Recipes in C Sec. 7.2 pp. 288-290
+ */
+template <class classType>
+classType gauss_rand(int select)
+{
+  const int NSUM = 25; // Used for random number generators.
+  classType PI = acos(-1.0); // Exact PI number from math functions.
+  classType x, X, Z, selected;
+  int i;
+  static classType U, U1, U2, V, V1, V2, S;
+  static int phase = 0;
+  static int phase2 = 0;
+  classType outR;
+
+  switch(select)
+  {
+    case 4:
+      // RAND based random number generator.
+      selected = ( (classType)(rand()) + 1.0 )/( (classType)(RAND_MAX) + 1.0 );
+      break;
+    case 1:
+      // Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
+      x = 0;
+      for (i = 0; i < NSUM; i++) {
+        x += (classType) rand() / RAND_MAX;
+      }
+      x -= NSUM / 2.0;
+      x /= sqrt(NSUM / 12.0);
+      selected = x;
+      break;
+    case 2:
+      // Use a method described by Abramowitz and Stegun.
+      if (phase == 0) {
+        U = (rand() + 1.) / (RAND_MAX + 2.);
+        V = rand() / (RAND_MAX + 1.);
+        Z = sqrt(-2 * log(U)) * sin(2 * PI * V);
+      }
+      else {
+        Z = sqrt(-2 * log(U)) * cos(2 * PI * V);
+      }
+
+      phase = 1 - phase;
+
+      selected = Z;
+      break;
+    case 3:
+    default:
+      // Use a method discussed in Knuth and due originally to Marsaglia.
+      if (phase2 == 0) {
+        do {
+          U1 = (classType) rand() / RAND_MAX;
+          U2 = (classType) rand() / RAND_MAX;
+
+          V1 = 2 * U1 - 1;
+          V2 = 2 * U2 - 1;
+          S = V1 * V1 + V2 * V2;
+        } while (S >= 1 || S == 0);
+
+        X = V1 * sqrt(-2 * log(S) / S);
+      }
+      else {
+        X = V2 * sqrt(-2 * log(S) / S);
+      }
+
+      phase2 = 1 - phase2;
+      selected = X;
+      break;
+  }
+  return selected;
+}
+
+template<class classType>
+classType typelessValid(int select) {
+  // Ensure random values are valid integers or floats
+  classType inA = (classType) 0;
+  bool isValid_Numerical = false;
+  char inATypeName[CHAR_BUFFER_SIZE];
+  size_t inASize = sizeof(typeid(inA).name());
+  strncpy(inATypeName, typeid(inA).name(), inASize);
+
+  const char *uint8_Name = typeid(uint8_t).name();
+  const char *int8_Name = typeid(int8_t).name();
+  const char *uint16_Name = typeid(uint16_t).name();
+  const char *int16_Name = typeid(int16_t).name();
+  const char *uint32_Name = typeid(uint32_t).name();
+  const char *int32_Name = typeid(int32_t).name();
+  const char *uint64_Name = typeid(uint64_t).name();
+  const char *int64_Name = typeid(int64_t).name();
+  const char *float_Name = typeid(float).name();
+  const char *double_Name = typeid(double).name();
+  const char *long_double_Name = typeid(long double).name();
+
+  bool match_uint8_Name = strcmp(inATypeName, uint8_Name);
+  bool match_int8_Name = strcmp(inATypeName, int8_Name);
+  bool match_uint16_Name = strcmp(inATypeName, uint16_Name);
+  bool match_int16_Name = strcmp(inATypeName, int16_Name);
+  bool match_uint32_Name = strcmp(inATypeName, uint32_Name);
+  bool match_int32_Name = strcmp(inATypeName, int32_Name);
+  bool match_uint64_Name = strcmp(inATypeName, uint64_Name);
+  bool match_int64_Name = strcmp(inATypeName, int64_Name);
+  bool match_float_Name = strcmp(inATypeName, float_Name);
+  bool match_double_Name = strcmp(inATypeName, double_Name);
+  bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
+  do {
+    inA = gauss_rand<classType>(select);
+
+    if (match_int8_Name) {
+      int8_t candidateValue = (int8_t) inA;
+      isValid_Numerical = (candidateValue >= INT8_MIN && candidateValue <= INT8_MAX);
+      printf("Operation=int8, A=%d", candidateValue);
+    } else if (match_uint8_Name) {
+      uint8_t candidateValue = (uint8_t) inA;
+      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT8_MAX);
+      printf("Operation=uint8, A=%d", candidateValue);
+    } else if (match_int16_Name) {
+      int16_t candidateValue = (int16_t) inA;
+      isValid_Numerical = (candidateValue >= INT16_MIN && candidateValue <= INT16_MAX);
+      printf("Operation=int16, A=%d", candidateValue);
+    } else if (match_uint16_Name) {
+      uint16_t candidateValue = (uint16_t) inA;
+      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT16_MAX);
+      printf("Operation=uint16, A=%d", candidateValue);
+    } else if (match_int32_Name) {
+      int32_t candidateValue = (int32_t) inA;
+      isValid_Numerical = (candidateValue >= INT32_MIN && candidateValue <= INT32_MAX);
+      printf("Operation=int32, A=%d", candidateValue);
+    } else if (match_uint32_Name) {
+      uint32_t candidateValue = (uint32_t) inA;
+      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT32_MAX);
+      printf("Operation=uint32, A=%d", candidateValue);
+    } else if (match_int64_Name) {
+      int64_t candidateValue = (int64_t) inA;
+      isValid_Numerical = (candidateValue >= INT64_MIN && candidateValue <= INT64_MAX);
+      printf("Operation=int64, A=%ld", candidateValue);
+    } else if (match_uint64_Name) {
+      uint64_t candidateValue = (uint64_t) inA;
+      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT64_MAX);
+      printf("Operation=uint64, A=%ld", candidateValue);
+    } else if (match_float_Name) {
+      float candidateValue = (float) inA;
+      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
+      printf("Operation=float, A=%f", candidateValue);
+    } else if (match_double_Name) {
+      double candidateValue = (double) inA;
+      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
+      printf("Operation=double, A=%f", candidateValue);
+    } else if (match_long_double_Name) {
+      long double candidateValue = (long double) inA;
+      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
+      printf("Operation=long_double, A=%Lf", candidateValue);
+    } else {
+      isValid_Numerical = false;
+      printf("Operation=unknownType, A=unknown");
+      assertm(!isValid_Numerical, "Invalid type passing");
+    }
+  } while(!isValid_Numerical);
+  return inA;
 }
 
 #endif // _CPUBENCHMARKPARALLEL_CPP_
