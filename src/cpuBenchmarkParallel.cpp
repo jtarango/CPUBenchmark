@@ -90,6 +90,7 @@ void printArgs(int argc, char *argv[]);
 int32_t printFullPath(const char *partialPath);
 uint32_t getNumCores(void);
 double getTime(void);
+void setCharArray(char content[CHAR_BUFFER_SIZE]);
 
 // Template functions.
 template<typename Type> void* my_test(void *args);
@@ -643,6 +644,15 @@ double getTime(void) {
   }
   return (double) tv.tv_sec + (0.000001 * (double) tv.tv_usec);
 # endif
+}
+
+/*Set array of chars to null for printf*/
+void setCharArray(char content[CHAR_BUFFER_SIZE]) {
+  unsigned int i;
+  for (i = 0; i < CHAR_BUFFER_SIZE; i++) {
+    content[i] = '\0';
+  }
+  return;
 }
 
 template<typename Type>
