@@ -102,6 +102,8 @@ INC = $(LIBINCLUDES) $(INCLUDES)
 ###############################################################################
 # Linking Libs
 ###############################################################################
+LDFLAGS_PTHREAD=-lpthread
+
 LIBS=-lm
 
 # Compile with no main.
@@ -339,9 +341,9 @@ cpuBenchmarkFaster: create_dirs
 .PHONY: cpuBenchmarkFaster
 
 cpuBenchmarkParallel: create_dirs
-	$(info Compile cpuBenchmark testharness)
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
-.PHONY: cpuBenchmark
+	$(info Compile cpuBenchmark parallel testharness)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LDFLAGS_PTHREAD) $(LIBS)
+.PHONY: cpuBenchmarkParallel
 
 ########################################################################################################################
 # Debugging make file options. Only for developer usage.

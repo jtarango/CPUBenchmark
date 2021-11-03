@@ -1,6 +1,31 @@
+/*
+ * Written by Joseph Tarango. The original work was to develop a dynamic data
+ * type for precision related code in embedded processors. Joseph
+ * Tarango webpages can be found at http://www.cs.ucr.edu/~jtarango
+ *
+ *THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ *INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ *AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ *THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ *ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ =============================================================================*/
+// #pragma once // Only used in header files.
+
+#ifndef __cplusplus
+extern "C++" {
+#endif // __cplusplus
+
+#ifndef _CPUBENCHMARK_CPP_
+#define _CPUBENCHMARK_CPP_
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
+// #include <stdlib.h>
+// #include <limits.h>
 #ifdef _WIN32
 #include <sys/timeb.h>
 #else
@@ -9,13 +34,29 @@
 #include <cmath>
 #include <cstdlib>
 
-#define CHAR_BUFFER_SIZE 1024
+/*======================================================================================================================
+ * Private Functions
+ * ===================================================================================================================*/
+int printFullPath(const char *partialPath);
+double mygettime(void);
+template< typename Type > void my_test(const char* name);
+int main(void);
+
+/*======================================================================================================================
+ * Shared constants and variables
+ * ===================================================================================================================*/
 #define PATH_MAX 4096
 volatile size_t DATASET_SIZE = 4294967291; // 100000007;
 const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
 FILE *writingFileContext = (FILE *)calloc(1, sizeof(FILE));
 
-int printFullPath(const char * partialPath)
+/*======================================================================================================================
+ * Definitions
+ * ===================================================================================================================*/
+// Ignore data flow analysis is to complex in IDE
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCDFAInspection"
+int printFullPath(const char *partialPath)
 {
 	int rc = 0;
 	char *fullPath = (char *)calloc(PATH_MAX, sizeof(char));
@@ -243,7 +284,7 @@ void my_test(const char* name) {
 	fprintf(writingFileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, mygettime() - t1, (unsigned long long int) (DATASET_SIZE * 10 * 3), (int)v & 1);
 }
 
-int main() {
+int main(void) {
 	// Simple delete of old file.
 	writingFileContext = fopen(filenameCPUData, "w");
 	fprintf(writingFileContext, "\n");
@@ -270,3 +311,9 @@ int main() {
 	fclose(writingFileContext);
 	return 0;
 }
+
+#endif // _CPUBENCHMARK_CPP_
+
+#ifndef __cplusplus
+}
+#endif // __cplusplus
