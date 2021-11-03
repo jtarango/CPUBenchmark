@@ -1,7 +1,7 @@
 /*
  * Written by Joseph Tarango. The original work was to develop a dynamic data
  * type for precision related code in embedded processors. Joseph
- * Tarango webpages can be found at http://www.cs.ucr.edu/~jtarango
+ * Tarango webpages can be found at http://www.josephtarango.com
  *
  *THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  *INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
@@ -52,12 +52,15 @@ extern "C++" {
 #include <sys/timeb.h>
 #include <windows.h>
 #else //  !_WIN32
+
 #include <sys/time.h>
 #include <unistd.h>
+
 #endif // _WIN32
 
 #define CHAR_BUFFER_SIZE 1024
 #define PATH_MAX 4096
+#define CHAR_PTHREAD_NAMELEN_MAX 16
 
 // Use (void) to silent unused warnings.
 #define assertm(exp, msg) assert(((void)msg, exp))
@@ -65,14 +68,16 @@ extern "C++" {
 // @todo remove and modularize
 volatile size_t DATASET_SIZE = 4294967291; // 100000007;
 const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
-FILE *writingFileContext = (FILE *)calloc(1, sizeof(FILE));
+FILE *writingFileContext = (FILE *) calloc(1, sizeof(FILE));
 
 /*======================================================================================================================
  * Functions prototypes
  * ===================================================================================================================*/
 // Main execution in library or standalone execution mode.
 #ifndef LIBRARY_MODE
+
 int main(int argc, char *argv[]);
+
 #elif (LIBRARY_MODE >= 0)
 #pragma message("LIBRARY_MODE")
 int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]);
@@ -83,53 +88,129 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]);
 
 // Helper functions.
 inline void errorAtLine(void);
+
 inline void errorAtLineThread(size_t threadIndex);
+
 void testTypes(void);
+
 void showUsage(void);
+
 void printArgs(int argc, char *argv[]);
+
 int32_t printFullPath(const char *partialPath);
+
 uint32_t getNumCores(void);
+
 double getTime(void);
+
 void setCharArray(char content[CHAR_BUFFER_SIZE]);
 
 // Template functions.
-template<typename Type> void* my_test(void *args);
-template<typename Type> void push_front(std::vector<Type> &v, Type val);
-template<typename Type> void push_back(std::vector<Type> &v, Type val);
-template<typename Type> Type pop_front(std::vector<Type> &v);
-template<typename Type> Type pop_back(std::vector<Type> &v);
-template<class classType> classType gauss_rand(int select);
-template<class classType> classType typelessValid(int select);
+template<typename Type>
+void push_front(std::vector<Type> &v, Type val);
+
+template<typename Type>
+void push_back(std::vector<Type> &v, Type val);
+
+template<typename Type>
+Type pop_front(std::vector<Type> &v);
+
+template<typename Type>
+Type pop_back(std::vector<Type> &v);
+
+template<class classType>
+classType gauss_rand(int select);
+
+template<class classType>
+classType typelessValid(int select);
 
 // Pass pointer-to-template-function as function argument.
 // Arithmetic Call template method on class template parameters.
 // @note typedef template function pointer
 template<template<typename> class tFunctor, class classType>
 classType perform(classType a, classType b);
+
 // Arithmetic functions - ISA Arithmetic support
 // https://web.archive.org/web/20130929035331/http://download-software.intel.com/sites/default/files/319433-015.pdf
 // https://www.felixcloutier.com/x86/
 // Supported: +, -, *, /
 // Not Supported (yet): square root, reciprocal, exponential, Sine, Cosine, Multiply-Add, Multiply-Subtract
-template<class classType> classType typelessSubtraction(classType u, classType v);
-template<class classType> classType typelessAddition(classType u, classType v);
-template<class classType> classType typelessMultiplication(classType u, classType v);
-template<class classType> classType typelessDivision(classType u, classType v);
+template<class classType>
+classType typelessSubtraction(classType u, classType v);
+
+template<class classType>
+classType typelessAddition(classType u, classType v);
+
+template<class classType>
+classType typelessMultiplication(classType u, classType v);
+
+template<class classType>
+classType typelessDivision(classType u, classType v);
 
 // Pass pointer-to-template-function as function argument
 // Arithmetic Print Call template method on class template parameters
 template<template<typename> class tPFunctor, class classType>
-  classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+
 // Print function for Arithmetic
-template <class classType>
+template<class classType>
 classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+
+// Tests exact
+void *testTypesExact(void *inArgs);
+void testTypesTemplateFocused(void);
+// Tests templates
+template<typename Type>
+void typelessTest(Type inA, Type inB);
+template<typename Type>
+void *testTypesTemplate(void *inArgs);
+
+// Tests Pthreads
+//  exact
+template<typename Type>
+void *my_test(void *args);
+
+/*======================================================================================================================
+ * Pthread generic struct definitions and prototypes for usage in arithmetic
+ * ===================================================================================================================*/
+typedef struct threadContextMeta {
+  size_t loopSetSize;
+  uint16_t threadTag;
+  uint8_t isExecuting;
+  char *saveFilename;
+  FILE *saveFileContext;
+  char *datatypeIDName;
+  uintptr_t *operandsMeta;
+  uintptr_t *resultantsMeta;
+  char *messages;
+} threadContextMeta_t;
+
+typedef struct threadContextArray {
+  std::vector<threadContextMeta_t> threadContextVectorMeta;
+} threadContextArray_t;
+
+bool threadContextMeta_init(threadContextMeta_t *threadContextData);
+
+template<typename Type>
+bool threadContextMeta_set(threadContextMeta_t *threadContextData,
+                           size_t loopSetSize,
+                           uint16_t threadTag,
+                           uint8_t isExecuting,
+                           char saveFilename[CHAR_BUFFER_SIZE],
+                           FILE *saveFileContext,
+                           Type *operandsMeta,
+                           size_t operandsMetaSize,
+                           Type *resultantsMeta,
+                           size_t resultantsMetaSize,
+                           char messages[CHAR_BUFFER_SIZE]);
 
 /*======================================================================================================================
  * Typedef template function pointers for pthreads_create
  * ===================================================================================================================*/
-// Code reads inside out such that *func_ptr is the function declaration. func_ptr is a function pointer such that the
-// first void* is the return data and takes in the second void*.
-typedef void* (*func_ptr)(void*);
+// Code reads inside out such that *func_ptr is the function declaration.
+// func_ptr is a function pointer such that the first void* is the return
+// data and takes in the second void*.
+typedef void *(*func_ptr)(void *);
 
 // @todo disabled and not in use
 /*======================================================================================================================
@@ -224,10 +305,8 @@ classType typelessSubtraction(classType u, classType v) {
 }
 
 template<class classType>
-struct tSubtract
-{
-  classType operator()(classType a, classType b)
-  {
+struct tSubtract {
+  classType operator()(classType a, classType b) {
     return typelessSubtraction<classType>(a, b);
   }
 };
@@ -238,10 +317,8 @@ classType typelessAddition(classType u, classType v) {
 }
 
 template<class classType>
-struct tAddition
-{
-  classType operator()(classType a, classType b)
-  {
+struct tAddition {
+  classType operator()(classType a, classType b) {
     return typelessAddition<classType>(a, b);
   }
 };
@@ -252,10 +329,8 @@ classType typelessMultiplication(classType u, classType v) {
 }
 
 template<class classType>
-struct tMultiplication
-{
-  classType operator()(classType a, classType b)
-  {
+struct tMultiplication {
+  classType operator()(classType a, classType b) {
     return typelessMultiplication<classType>(a, b);
   }
 };
@@ -266,17 +341,14 @@ classType typelessDivision(classType u, classType v) {
 }
 
 template<class classType>
-struct tDivision
-{
-  classType operator()(classType a, classType b)
-  {
+struct tDivision {
+  classType operator()(classType a, classType b) {
     return typelessDivision<classType>(a, b);
   }
 };
 
 template<template<typename> class tFunctor, class classType>
-classType perform(classType a, classType b)
-{
+classType perform(classType a, classType b) {
   // Equivalent to this:
   // tFunctor<classType> functor;
   // return functor(a, b);
@@ -284,16 +356,16 @@ classType perform(classType a, classType b)
 }
 
 template<template<typename> class tPFunctor, class classType>
-classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE])
-{
+classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
   // Equivalent to this:
   // tPFunctor<classType> functor;
   // return functor(inA, inB, outR, operationName);
   return tPFunctor<classType>()(inA, inB, outR, operationName);
 }
+
 // Note: using std::enable_if with anonymous type parameters
 // template <class classType, std::enable_if_t<!std::is_arithmetic<classType>::value>* = nullptr>
-template <class classType>
+template<class classType>
 classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
   char inATypeName[CHAR_BUFFER_SIZE];
   char inBTypeName[CHAR_BUFFER_SIZE];
@@ -335,39 +407,29 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
     bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
 
     if (match_int8_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int8_t)inA, (int8_t)inB, (int8_t)outR);
-    }
-    else if (match_uint8_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint8_t)inA, (uint8_t)inB, (uint8_t)outR);
-    }
-    else if (match_int16_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int16_t)inA, (int16_t)inB, (int16_t)outR);
-    }
-    else if (match_uint16_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint16_t)inA, (uint16_t)inB, (uint16_t)outR);
-    }
-    else if (match_int32_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int32_t)inA, (int32_t)inB, (int32_t)outR);
-    }
-    else if (match_uint32_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint32_t)inA, (uint32_t)inB, (uint32_t)outR);
-    }
-    else if (match_int64_Name) {
-      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (int64_t)inA, (int64_t)inB, (int64_t)outR);
-    }
-    else if (match_uint64_Name) {
-      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (uint64_t)inA, (uint64_t)inB, (uint64_t)outR);
-    }
-    else if (match_float_Name) {
-      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (float)inA, (float)inB, (float)outR);
-    }
-    else if (match_double_Name) {
-      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (double)inA, (double)inB, (double)outR);
-    }
-    else if (match_long_double_Name) {
-      printf("Operation=%s, A=%Lf, B=%Lf, Result= %Lf", operationName, (long double)inA, (long double)inB, (long double)outR);
-    }
-    else{
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int8_t) inA, (int8_t) inB, (int8_t) outR);
+    } else if (match_uint8_Name) {
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
+    } else if (match_int16_Name) {
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int16_t) inA, (int16_t) inB, (int16_t) outR);
+    } else if (match_uint16_Name) {
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
+    } else if (match_int32_Name) {
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int32_t) inA, (int32_t) inB, (int32_t) outR);
+    } else if (match_uint32_Name) {
+      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
+    } else if (match_int64_Name) {
+      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (int64_t) inA, (int64_t) inB, (int64_t) outR);
+    } else if (match_uint64_Name) {
+      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
+    } else if (match_float_Name) {
+      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (float) inA, (float) inB, (float) outR);
+    } else if (match_double_Name) {
+      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (double) inA, (double) inB, (double) outR);
+    } else if (match_long_double_Name) {
+      printf("Operation=%s, A=%Lf, B=%Lf, Result= %Lf", operationName, (long double) inA, (long double) inB,
+             (long double) outR);
+    } else {
       printf("Operation=%s, A=unknown, B=unknown, Result=unknown", operationName);
     }
   }
@@ -375,16 +437,14 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
 }
 
 template<class classType>
-struct tPrint
-{
-  classType operator()(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE])
-  {
+struct tPrint {
+  classType operator()(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
     return typelessPrint<classType>(inA, inB, outR, operationName);
   }
 };
 
-template <typename Type>
-void typelessTest(Type inA, Type inB){
+template<typename Type>
+void typelessTest(Type inA, Type inB) {
   // float typelessResult = StructBinaryOperation<float, float, float, float, float>()(&(typelessSubtract), inA, inB);
   Type typelessResult_add = perform<tAddition>(inA, inB);
   performPrint<tPrint>(inA, inB, typelessResult_add, "addition");
@@ -400,16 +460,167 @@ void typelessTest(Type inA, Type inB){
   return;
 }
 
-void testTypes(void){
+void *testTypesExact(void *inArgs) {
+  void *danglePtr = NULL;
   typelessTest<int8_t>(3.14, 42);
+  typelessTest<uint8_t>(3.14, 42);
   typelessTest<int16_t>(3.14, 42);
+  typelessTest<uint16_t>(3.14, 42);
   typelessTest<int32_t>(3.14, 42);
+  typelessTest<uint32_t>(3.14, 42);
   typelessTest<int64_t>(3.14, 42);
+  typelessTest<uint64_t>(3.14, 42);
   typelessTest<float>(3.14, 42);
   typelessTest<double>(3.14, 42);
+  typelessTest<long double>(3.14, 42);
+  return danglePtr;
+}
+
+void testTypesTemplateFocused(void) {
+  const size_t arraySize = 2;
+  const int randSelect = 3;
+  int8_t randomInputs_int8_t[arraySize];
+  uint8_t randomInputs_uint8_t[arraySize];
+  int16_t randomInputs_int16_t[arraySize];
+  uint16_t randomInputs_uint16_t[arraySize];
+  int32_t randomInputs_int32_t[arraySize];
+  uint32_t randomInputs_uint32_t[arraySize];
+  int64_t randomInputs_int64_t[arraySize];
+  uint64_t randomInputs_uint64_t[arraySize];
+  float randomInputs_float_t[arraySize];
+  double randomInputs_double_t[arraySize];
+  long double randomInputs_long_double_t[arraySize];
+
+  for (size_t i = 0; i < arraySize; i++) {
+    randomInputs_int8_t[i] = gauss_rand<int8_t>(randSelect);
+    randomInputs_uint8_t[i] = gauss_rand<uint8_t>(randSelect);
+    randomInputs_int16_t[i] = gauss_rand<int16_t>(randSelect);
+    randomInputs_uint16_t[i] = gauss_rand<uint16_t>(randSelect);
+    randomInputs_int32_t[i] = gauss_rand<int32_t>(randSelect);
+    randomInputs_uint32_t[i] = gauss_rand<uint32_t>(randSelect);
+    randomInputs_int64_t[i] = gauss_rand<int64_t>(randSelect);
+    randomInputs_uint64_t[i] = gauss_rand<uint64_t>(randSelect);
+    randomInputs_float_t[i] = gauss_rand<float>(randSelect);
+    randomInputs_double_t[i] = gauss_rand<double>(randSelect);
+    randomInputs_long_double_t[i] = gauss_rand<long double>(randSelect);
+  }
+
+  typelessTest<int8_t>(randomInputs_int8_t[0], randomInputs_int8_t[1]);
+  typelessTest<uint8_t>(randomInputs_uint8_t[0], randomInputs_uint8_t[1]);
+  typelessTest<int16_t>(randomInputs_int16_t[0], randomInputs_int16_t[1]);
+  typelessTest<uint16_t>(randomInputs_uint16_t[0], randomInputs_uint16_t[1]);
+  typelessTest<int32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1]);
+  typelessTest<uint32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1]);
+  typelessTest<int64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1]);
+  typelessTest<uint64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1]);
+  typelessTest<float>(randomInputs_float_t[0], randomInputs_float_t[1]);
+  typelessTest<double>(randomInputs_double_t[0], randomInputs_double_t[1]);
+  typelessTest<long double>(randomInputs_long_double_t[0], randomInputs_long_double_t[1]);
+  return;
+}
+
+template<typename Type>
+void *testTypesTemplate(void *inArgs) {
+  void *danglePtr = NULL;
+  threadContextMeta_t *thread_info = (threadContextMeta_t *) inArgs;
+
+  const size_t arraySize = 2;
+  const int randSelect = 3;
+  Type randomInputs_Type_t[arraySize];
+
+  for (size_t i = 0; i < arraySize; i++) {
+    randomInputs_Type_t[i] = gauss_rand<Type>(randSelect);
+  }
+
+  typelessTest<Type>(randomInputs_Type_t[0], randomInputs_Type_t[1]);
+  return danglePtr;
+}
+
+bool threadContextMeta_init(threadContextMeta_t *threadContextData) {
+  bool isAllocated = false;
+  if (NULL == threadContextData) {
+    threadContextData = (threadContextMeta_t *) malloc(sizeof(threadContextMeta_t));
+    if (NULL != threadContextData) {
+      threadContextData->loopSetSize = 0;
+      threadContextData->threadTag = 0;
+      threadContextData->isExecuting = 0;
+      threadContextData->saveFilename = NULL;
+      threadContextData->saveFileContext = NULL;
+      threadContextData->datatypeIDName = NULL;
+      threadContextData->operandsMeta = NULL;
+      threadContextData->resultantsMeta = NULL;
+      threadContextData->messages = NULL;
+      isAllocated = true;
+    }
+  }
+  return isAllocated;
+}
+
+bool threadContextArray_init(threadContextArray_t *threadContextArrayData,
+                             size_t reserveSize) {
+  bool isAllocated = false;
+  if (NULL == threadContextArrayData) {
+    threadContextArrayData = (threadContextArray_t *) malloc(sizeof(threadContextArray_t));
+    if (reserveSize > threadContextArrayData->threadContextVectorMeta.capacity()) {
+      threadContextArrayData->threadContextVectorMeta.reserve(reserveSize);
+    }
+  }
+  return isAllocated;
+}
+
+template<typename Type>
+bool threadContextMeta_set(threadContextMeta_t *threadContextData,
+                           size_t loopSetSize,
+                           uint16_t threadTag,
+                           uint8_t isExecuting,
+                           char saveFilename[CHAR_BUFFER_SIZE],
+                           FILE *saveFileContext,
+                           Type *operandsMeta,
+                           size_t operandsMetaSize,
+                           Type *resultantsMeta,
+                           size_t resultantsMetaSize,
+                           char messages[CHAR_BUFFER_SIZE]) {
+  bool isAllocated = false;
+
+  if (NULL != threadContextData) {
+    threadContextData->loopSetSize = loopSetSize;
+    threadContextData->threadTag = threadTag;
+    threadContextData->isExecuting = isExecuting;
+
+    if (NULL == threadContextData->saveFilename) {
+      threadContextData->saveFilename = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+    }
+    strncpy(threadContextData->saveFilename, saveFilename, CHAR_BUFFER_SIZE);
+
+    if (NULL == threadContextData->saveFileContext) {
+      threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "w");
+    }
+
+    // Construct string array
+    if (NULL == threadContextData->datatypeIDName){
+      threadContextData->datatypeIDName = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+    }
+    // Extract name from type
+    Type tmp;
+    size_t dataTypeSize = sizeof(typeid(tmp).name());
+    strncpy(threadContextData->datatypeIDName, typeid(tmp).name(), dataTypeSize);
+
+    // Copy over meta data for operands and resultants
+    memcpy(threadContextData->operandsMeta, operandsMeta, operandsMetaSize);
+    memcpy(threadContextData->resultantsMeta, resultantsMeta, resultantsMetaSize);
+
+    if (NULL == threadContextData->messages) {
+      threadContextData->messages = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+    }
+    strncpy(threadContextData->messages, messages, CHAR_BUFFER_SIZE);
+
+    isAllocated = true;
+  }
+  return isAllocated;
 }
 
 #ifndef LIBRARY_MODE
+
 int main(int argc, char *argv[])
 #elif (LIBRARY_MODE >= 0)
 #pragma message("LIBRARY_MODE")
@@ -429,7 +640,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   size_t activeThreadCount = 0;
   size_t threadStatus, threadIndex;
   size_t notStartedSize, inProgressSize;
-
+  threadContextMeta_t *threadContextData = (threadContextMeta_t *)malloc(sizeof(threadContextMeta_t));
   // Function pointer list
   // @todo C++: Generate array to function pointers in a loop.
   func_ptr myTestFuncs[] = {
@@ -446,6 +657,20 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
     (&my_test<volatile float>),
     (&my_test<volatile double>),
     (&my_test<volatile long double>)
+  };
+
+  func_ptr myTypelessTestFuncs[] = {
+    testTypesTemplate<int8_t>,
+    testTypesTemplate<uint8_t>,
+    testTypesTemplate<int16_t>,
+    testTypesTemplate<uint16_t>,
+    testTypesTemplate<int32_t>,
+    testTypesTemplate<uint32_t>,
+    testTypesTemplate<int64_t>,
+    testTypesTemplate<uint64_t>,
+    testTypesTemplate<float>,
+    testTypesTemplate<double>,
+    testTypesTemplate<long double>
   };
   size_t functionPointerListSize = sizeof(myTestFuncs) / sizeof(myTestFuncs[0]);
   pthread_t *threadContext = new pthread_t[functionPointerListSize];
@@ -502,6 +727,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
     // Wait for some time so threads cann to do work...
     sleep(32);
 
+    // PTHREAD_MAX_NAMELEN_NP, pthread_setname_np()
+
     // Verify the status of an "in progress" thread and if done move to complete.
     if (!inProgressQueue.empty()) {
       inProgressSize = inProgressQueue.size();
@@ -532,13 +759,14 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 
   delete[] threadContext;
   delete[] threadID;
+  pthread_exit(NULL);
   return EXIT_SUCCESS;
 }
 
 /*======================================================================================================================
  * Helper functions
  * ===================================================================================================================*/
-inline void errorAtLineThread(size_t threadIndex){
+inline void errorAtLineThread(size_t threadIndex) {
   // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
   // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
   fprintf(stderr, "Error in %s at line %d with %s.\n"
@@ -554,7 +782,7 @@ inline void errorAtLineThread(size_t threadIndex){
   return;
 }
 
-inline void errorAtLine(void){
+inline void errorAtLine(void) {
   // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
   // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
   fprintf(stderr, "Error in %s at line %d with %s.\n"
@@ -576,18 +804,17 @@ void show_usage(void) {
 
 void printArgs(int argc, char *argv[]) {
   size_t selectSize, bufferSize;
-  size_t bufferMax = CHAR_BUFFER_SIZE-1;
+  size_t bufferMax = CHAR_BUFFER_SIZE - 1;
   char inputBuffer[CHAR_BUFFER_SIZE];
   printf("Inputs and parameters::\n");
   printf(" argc = %d\n", argc);
   for (size_t i = 0; i < (size_t) argc; i++) {
     bufferSize = sizeof(argv[i]);
-    if (bufferSize >= bufferMax){
+    if (bufferSize >= bufferMax) {
       fprintf(stderr, " Error on line %d : %s.\n", __LINE__, strerror(errno));
       fprintf(stderr, " Buffer overflow attempt : bufferSize(%ld) >= CHAR_BUFFER_MAX(%ld)\n", bufferSize, bufferMax);
       exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
       selectSize = bufferSize > bufferMax ? bufferMax : bufferSize;
       strncpy(inputBuffer, argv[i], selectSize);
       printf(" argv[%ld] = %s with size %ld\n", i, inputBuffer, selectSize);
@@ -656,9 +883,9 @@ void setCharArray(char content[CHAR_BUFFER_SIZE]) {
 }
 
 template<typename Type>
-void* my_test(void *args) {
-  void* voidPtr = NULL;
-  size_t threadIDNumber = (size_t)&args;
+void *my_test(void *args) {
+  void *voidPtr = NULL;
+  size_t threadIDNumber = (size_t) &args;
   printf("Starting %ld...", threadIDNumber);
   Type inType;
   char *name = (char *) (typeid(inType).name());
@@ -731,12 +958,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, add, %f, [%d]\n", name,  getTime() - t1, (int) v_add & 1);
-  fprintf(writingFileContext, "%s, add, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, add, %f, [%d]\n", name, getTime() - t1, (int) v_add & 1);
+  fprintf(writingFileContext, "%s, add, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_add & 1);
 
   // Subtraction
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_sub -= v9;
     v_sub -= v0;
@@ -752,12 +979,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, sub, %f, [%d]\n", name,  getTime() - t1, (int) v_sub & 1);
-  fprintf(writingFileContext, "%s, sub, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, sub, %f, [%d]\n", name, getTime() - t1, (int) v_sub & 1);
+  fprintf(writingFileContext, "%s, sub, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_sub & 1);
 
   // Addition/Subtraction
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_addsub += v9;
     v_addsub += v0;
@@ -773,12 +1000,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, add/sub, %f, [%d]\n", name,  getTime() - t1, (int) v_addsub & 1);
-  fprintf(writingFileContext, "%s, add/sub, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, add/sub, %f, [%d]\n", name, getTime() - t1, (int) v_addsub & 1);
+  fprintf(writingFileContext, "%s, add/sub, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_addsub & 1);
 
   // Multiply
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_mul *= v9;
     v_mul *= v0;
@@ -794,12 +1021,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, mul, %f, [%d]\n", name,  getTime() - t1, (int) v_mul & 1);
-  fprintf(writingFileContext, "%s, mul, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, mul, %f, [%d]\n", name, getTime() - t1, (int) v_mul & 1);
+  fprintf(writingFileContext, "%s, mul, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_mul & 1);
 
   // Divide
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_div /= v9;
     v_div /= v0;
@@ -815,12 +1042,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, div, %f, [%d]\n", name,  getTime() - t1, (int) v_div & 1);
-  fprintf(writingFileContext, "%s, div, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, div, %f, [%d]\n", name, getTime() - t1, (int) v_div & 1);
+  fprintf(writingFileContext, "%s, div, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_div & 1);
 
   // Multiply/Divide
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_muldiv *= v9;
     v_muldiv *= v0;
@@ -836,12 +1063,12 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, mul/div, %f, [%d]\n", name,  getTime() - t1, (int) v_muldiv & 1);
-  fprintf(writingFileContext, "%s, mul/div, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, mul/div, %f, [%d]\n", name, getTime() - t1, (int) v_muldiv & 1);
+  fprintf(writingFileContext, "%s, mul/div, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10), (int) v_muldiv & 1);
 
   // Square/SquareRoot/Multiply
-  t1 =  getTime();
+  t1 = getTime();
   for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
     v_sqsqrtmul *= sqrt(v9 * v9);
     v_sqsqrtmul *= sqrt(v0 * v0);
@@ -857,8 +1084,8 @@ void* my_test(void *args) {
   }
   // Pretend we make use of v so compiler doesn't optimize out
   //  the loop completely
-  printf("%s, mul/sqrt/sq, %f, [%d]\n", name,  getTime() - t1, (int) v_sqsqrtmul & 1);
-  fprintf(writingFileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name,  getTime() - t1,
+  printf("%s, mul/sqrt/sq, %f, [%d]\n", name, getTime() - t1, (int) v_sqsqrtmul & 1);
+  fprintf(writingFileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, getTime() - t1,
           (unsigned long long int) (DATASET_SIZE * 10 * 3), (int) v_sqsqrtmul & 1);
   printf("Ending %ld...", threadIDNumber);
 
@@ -913,9 +1140,8 @@ void push_back(std::vector<Type> &v, Type val) {
  *  Abramowitz and Stegun, Handbook of Mathematical Functions
  *  Press et al., Numerical Recipes in C Sec. 7.2 pp. 288-290
  */
-template <class classType>
-classType gauss_rand(int select)
-{
+template<class classType>
+classType gauss_rand(int select) {
   const int NSUM = 25; // Used for random number generators.
   classType PI = acos(-1.0); // Exact PI number from math functions.
   classType x, X, Z, selected;
@@ -925,17 +1151,16 @@ classType gauss_rand(int select)
   static int phase2 = 0;
   classType outR;
 
-  switch(select)
-  {
+  switch (select) {
     case 4:
       // RAND based random number generator.
-      selected = ( (classType)(rand()) + 1.0 )/( (classType)(RAND_MAX) + 1.0 );
+      selected = ((classType) (rand()) + 1.0) / ((classType) (RAND_MAX) + 1.0);
       break;
     case 1:
       // Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
       x = 0;
       for (i = 0; i < NSUM; i++) {
-        x += (classType) rand() / RAND_MAX;
+        x += (classType) rand() / (classType) RAND_MAX;
       }
       x -= NSUM / 2.0;
       x /= sqrt(NSUM / 12.0);
@@ -947,8 +1172,7 @@ classType gauss_rand(int select)
         U = (rand() + 1.) / (RAND_MAX + 2.);
         V = rand() / (RAND_MAX + 1.);
         Z = sqrt(-2 * log(U)) * sin(2 * PI * V);
-      }
-      else {
+      } else {
         Z = sqrt(-2 * log(U)) * cos(2 * PI * V);
       }
 
@@ -961,8 +1185,8 @@ classType gauss_rand(int select)
       // Use a method discussed in Knuth and due originally to Marsaglia.
       if (phase2 == 0) {
         do {
-          U1 = (classType) rand() / RAND_MAX;
-          U2 = (classType) rand() / RAND_MAX;
+          U1 = (classType) rand() / (classType) RAND_MAX;
+          U2 = (classType) rand() / (classType) RAND_MAX;
 
           V1 = 2 * U1 - 1;
           V2 = 2 * U2 - 1;
@@ -970,8 +1194,7 @@ classType gauss_rand(int select)
         } while (S >= 1 || S == 0);
 
         X = V1 * sqrt(-2 * log(S) / S);
-      }
-      else {
+      } else {
         X = V2 * sqrt(-2 * log(S) / S);
       }
 
@@ -1066,7 +1289,7 @@ classType typelessValid(int select) {
       printf("Operation=unknownType, A=unknown");
       assertm(!isValid_Numerical, "Invalid type passing");
     }
-  } while(!isValid_Numerical);
+  } while (!isValid_Numerical);
   return inA;
 }
 

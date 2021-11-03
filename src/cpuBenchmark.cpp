@@ -1,7 +1,7 @@
 /*
  * Written by Joseph Tarango. The original work was to develop a dynamic data
  * type for precision related code in embedded processors. Joseph
- * Tarango webpages can be found at http://www.cs.ucr.edu/~jtarango
+ * Tarango webpages can be found at http://www.josephtarango.com
  *
  *THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  *INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
