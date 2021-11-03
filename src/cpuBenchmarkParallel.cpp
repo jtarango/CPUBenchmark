@@ -272,13 +272,13 @@ void typelessTest(Type inA, Type inB){
   performPrint<tPrint>(inA, inB, typelessResult_add, "addition");
 
   Type typelessResult_sub = perform<tSubtract>(inA, inB);
-  // performPrint<typelessPrint>(inA, inB, typelessResult_sub, "subtraction");
+  performPrint<tPrint>(inA, inB, typelessResult_sub, "subtraction");
 
   Type typelessResult_mul = perform<tMultiplication>(inA, inB);
-  // performPrint<typelessPrint>(inA, inB, typelessResult_mul, "multiplication");
+  performPrint<tPrint>(inA, inB, typelessResult_mul, "multiplication");
 
   Type typelessResult_div = perform<tDivision>(inA, inB);
-  // performPrint<typelessPrint>(inA, inB, typelessResult_add, "division");
+  performPrint<tPrint>(inA, inB, typelessResult_div, "division");
   return;
 }
 
