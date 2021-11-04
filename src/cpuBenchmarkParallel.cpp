@@ -150,18 +150,23 @@ classType typelessDivision(classType u, classType v);
 // Pass pointer-to-template-function as function argument
 // Arithmetic Print Call template method on class template parameters
 template<template<typename> class tPFunctor, class classType>
-classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE],
+                       FILE *writeFileContext, long double timeDelta, size_t loopIterations);
 
 // Print function for Arithmetic
 template<class classType>
-classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]);
+classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE],
+                        FILE *writeFileContext, long double timeDelta, size_t loopIterations);
 
 // Tests exact
 void *testTypesExact(void *inArgs);
+
 void testTypesTemplateFocused(void);
+
 // Tests templates
 template<typename Type>
 void typelessTest(Type inA, Type inB);
+
 template<typename Type>
 void *testTypesTemplate(void *inArgs);
 
@@ -356,17 +361,23 @@ classType perform(classType a, classType b) {
 }
 
 template<template<typename> class tPFunctor, class classType>
-classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
+classType performPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE],
+                       FILE *writeFileContext, long double timeDelta, size_t loopIterations) {
   // Equivalent to this:
   // tPFunctor<classType> functor;
   // return functor(inA, inB, outR, operationName);
-  return tPFunctor<classType>()(inA, inB, outR, operationName);
+  return tPFunctor<classType>()(inA, inB, outR, operationName, writeFileContext, timeDelta, loopIterations);
 }
 
 // Note: using std::enable_if with anonymous type parameters
 // template <class classType, std::enable_if_t<!std::is_arithmetic<classType>::value>* = nullptr>
 template<class classType>
-classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
+classType typelessPrint(classType inA, classType inB, classType outR,
+                        const char operationName[CHAR_BUFFER_SIZE],
+                        FILE *writeFileContext,
+                        long double timeDelta,
+                        size_t loopIterations) {
+  char printBuffer[CHAR_BUFFER_SIZE];
   char inATypeName[CHAR_BUFFER_SIZE];
   char inBTypeName[CHAR_BUFFER_SIZE];
   char outRTypeName[CHAR_BUFFER_SIZE];
@@ -405,58 +416,126 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
     bool match_float_Name = strcmp(inATypeName, float_Name);
     bool match_double_Name = strcmp(inATypeName, double_Name);
     bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
-
+    /* IEEE-754 Precision of the representation for printing values.
+     * A 32-bit, single-precision IEEE754 number has 24 mantissa bits, which gives about 23+1 * log10(2) = 7.22 ~ 8 digits of precision.
+     * A 64-bit, double precision IEEE754 number has 53 mantissa bits, which gives about 52+1 * log10(2) = 15.95 ~ 16 digits of precision.
+     * A 128-bit, long double precision IEEE754 number has 112 mantissa bits, which gives about 112+1 * log10(2) = 34.01 ~ 35 digits of precision.
+     */
     if (match_int8_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int8_t) inA, (int8_t) inB, (int8_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+               operationName, timeDelta, loopIterations,
+               (int8_t) inA, (int8_t) inB, (int8_t) outR);
     } else if (match_uint8_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+              operationName, timeDelta, loopIterations,
+              (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
     } else if (match_int16_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int16_t) inA, (int16_t) inB, (int16_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+              operationName, timeDelta, loopIterations,
+              (int16_t) inA, (int16_t) inB, (int16_t) outR);
     } else if (match_uint16_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+              operationName, timeDelta, loopIterations,
+              (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
     } else if (match_int32_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (int32_t) inA, (int32_t) inB, (int32_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+              operationName, timeDelta, loopIterations,
+              (int32_t) inA, (int32_t) inB, (int32_t) outR);
     } else if (match_uint32_Name) {
-      printf("Operation=%s, A=%d, B=%d, Result= %d", operationName, (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+              operationName, timeDelta, loopIterations,
+              (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
     } else if (match_int64_Name) {
-      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (int64_t) inA, (int64_t) inB, (int64_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64_t, %s, %Lf, %lu, A=%ld, B=%ld, Result= %ld",
+              operationName, timeDelta, loopIterations,
+              (int64_t) inA, (int64_t) inB, (int64_t) outR);
     } else if (match_uint64_Name) {
-      printf("Operation=%s, A=%ld, B=%ld, Result= %ld", operationName, (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64_t, %s, %Lf, %lu, A=%ld, B=%ld, Result= %ld",
+              operationName, timeDelta, loopIterations,
+               (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
     } else if (match_float_Name) {
-      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (float) inA, (float) inB, (float) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "float, %s, %Lf, %lu, A=%.8f, B=%.8f, Result= %.8f",
+              operationName, timeDelta, loopIterations,
+               (float) inA, (float) inB, (float) outR);
     } else if (match_double_Name) {
-      printf("Operation=%s, A=%f, B=%f, Result= %f", operationName, (double) inA, (double) inB, (double) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "double, %s, %Lf, %lu, A=%.16f, B=%.16f, Result= %.16f",
+              operationName, timeDelta, loopIterations,
+              (double) inA, (double) inB, (double) outR);
     } else if (match_long_double_Name) {
-      printf("Operation=%s, A=%Lf, B=%Lf, Result= %Lf", operationName, (long double) inA, (long double) inB,
-             (long double) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, A=%.35Lf, B=%.35Lf, Result= %.35Lf",
+              operationName, timeDelta, loopIterations,
+              (long double) inA, (long double) inB, (long double) outR);
     } else {
-      printf("Operation=%s, A=unknown, B=unknown, Result=unknown", operationName);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "Type=unknown_AtLine_%d, Operation=%s, TimeDelta=%Lf, LoopIterations=%ld, "
+             "A=unknown, B=unknown, Result=unknown",
+             __LINE__, operationName, timeDelta, loopIterations);
     }
+    printf("%s\n", printBuffer);
+    fprintf(writingFileContext, "%s\n", printBuffer);
   }
   return outR;
 }
 
 template<class classType>
 struct tPrint {
-  classType operator()(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE]) {
-    return typelessPrint<classType>(inA, inB, outR, operationName);
+  classType operator()(classType inA, classType inB, classType outR,
+                       const char operationName[CHAR_BUFFER_SIZE],
+                       FILE *writeFileContext,
+                       long double timeDelta,
+                       size_t loopIterations) {
+    return typelessPrint<classType>(inA, inB, outR, operationName, writeFileContext, timeDelta, loopIterations);
   }
 };
 
 template<typename Type>
 void typelessTest(Type inA, Type inB) {
   // float typelessResult = StructBinaryOperation<float, float, float, float, float>()(&(typelessSubtract), inA, inB);
-  Type typelessResult_add = perform<tAddition>(inA, inB);
-  performPrint<tPrint>(inA, inB, typelessResult_add, "addition");
+  FILE *writeFileContext;
+  long double timeStart, timeStop, timeDelta;
+  size_t loopIterations = DATASET_SIZE;
+  Type typelessResult_add, typelessResult_sub, typelessResult_mul, typelessResult_div;
 
-  Type typelessResult_sub = perform<tSubtract>(inA, inB);
-  performPrint<tPrint>(inA, inB, typelessResult_sub, "subtraction");
+  // Simple delete of old file.
+  writingFileContext = fopen(filenameCPUData, "w");
+  fprintf(writingFileContext, "\n");
+  fclose(writingFileContext);
 
-  Type typelessResult_mul = perform<tMultiplication>(inA, inB);
-  performPrint<tPrint>(inA, inB, typelessResult_mul, "multiplication");
+  // Create new file to append data.
+  writingFileContext = fopen(filenameCPUData, "a+");
+  fprintf(writingFileContext, "Type, Time for Operations, Count of Operations Performed, LHS, RHS, R\n");
 
-  Type typelessResult_div = perform<tDivision>(inA, inB);
-  performPrint<tPrint>(inA, inB, typelessResult_div, "division");
+  timeStart = getTime();
+  for (size_t index = 0; index < loopIterations; index++) {
+    typelessResult_add = perform<tAddition>(inA, inB);
+  }
+  timeStop = getTime();
+  timeDelta = timeStop - timeStart;
+  performPrint<tPrint>(inA, inB, typelessResult_add, "addition", writeFileContext, timeDelta, loopIterations);
+
+  timeStart = getTime();
+  for (size_t index = 0; index < loopIterations; index++) {
+    typelessResult_sub = perform<tSubtract>(inA, inB);
+  }
+  timeStop = getTime();
+  timeDelta = timeStop - timeStart;
+  performPrint<tPrint>(inA, inB, typelessResult_sub, "subtraction", writeFileContext, timeDelta, loopIterations);
+
+  timeStart = getTime();
+  for (size_t index = 0; index < loopIterations; index++) {
+    typelessResult_mul = perform<tMultiplication>(inA, inB);
+  }
+  timeStop = getTime();
+  timeDelta = timeStop - timeStart;
+  performPrint<tPrint>(inA, inB, typelessResult_mul, "multiplication", writeFileContext, timeDelta, loopIterations);
+
+  timeStart = getTime();
+  for (size_t index = 0; index < loopIterations; index++) {
+    typelessResult_div = perform<tDivision>(inA, inB);
+  }
+  timeStop = getTime();
+  timeDelta = timeStop - timeStart;
+  performPrint<tPrint>(inA, inB, typelessResult_div, "division", writeFileContext, timeDelta, loopIterations);
+
   return;
 }
 
@@ -597,7 +676,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     }
 
     // Construct string array
-    if (NULL == threadContextData->datatypeIDName){
+    if (NULL == threadContextData->datatypeIDName) {
       threadContextData->datatypeIDName = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
     // Extract name from type
@@ -640,7 +719,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   size_t activeThreadCount = 0;
   size_t threadStatus, threadIndex;
   size_t notStartedSize, inProgressSize;
-  threadContextMeta_t *threadContextData = (threadContextMeta_t *)malloc(sizeof(threadContextMeta_t));
+  threadContextMeta_t *threadContextData = (threadContextMeta_t *) malloc(sizeof(threadContextMeta_t));
   // Function pointer list
   // @todo C++: Generate array to function pointers in a loop.
   func_ptr myTestFuncs[] = {
