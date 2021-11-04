@@ -421,54 +421,57 @@ classType typelessPrint(classType inA, classType inB, classType outR,
      * A 64-bit, double precision IEEE754 number has 53 mantissa bits, which gives about 52+1 * log10(2) = 15.95 ~ 16 digits of precision.
      * A 128-bit, long double precision IEEE754 number has 112 mantissa bits, which gives about 112+1 * log10(2) = 34.01 ~ 35 digits of precision.
      */
+    // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
     if (match_int8_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8_t, %s, %Lf, %lu, %d, %d, %d",
                operationName, timeDelta, loopIterations,
                (int8_t) inA, (int8_t) inB, (int8_t) outR);
     } else if (match_uint8_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
-              operationName, timeDelta, loopIterations,
-              (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8_t, %s, %Lf, %lu, %d, %d, %d",
+               operationName, timeDelta, loopIterations,
+               (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
     } else if (match_int16_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
-              operationName, timeDelta, loopIterations,
-              (int16_t) inA, (int16_t) inB, (int16_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16_t, %s, %Lf, %lu, %d, %d, %d",
+               operationName, timeDelta, loopIterations,
+               (int16_t) inA, (int16_t) inB, (int16_t) outR);
     } else if (match_uint16_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
-              operationName, timeDelta, loopIterations,
-              (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16_t, %s, %Lf, %lu, %d, %d, %d",
+               operationName, timeDelta, loopIterations,
+               (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
     } else if (match_int32_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
-              operationName, timeDelta, loopIterations,
-              (int32_t) inA, (int32_t) inB, (int32_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32_t, %s, %Lf, %lu, %d, %d, %d",
+               operationName, timeDelta, loopIterations,
+               (int32_t) inA, (int32_t) inB, (int32_t) outR);
     } else if (match_uint32_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32_t, %s, %Lf, %lu, A=%d, B=%d, Result= %d",
-              operationName, timeDelta, loopIterations,
-              (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32_t, %s, %Lf, %lu, %d, %d, %d",
+               operationName, timeDelta, loopIterations,
+               (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
     } else if (match_int64_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64_t, %s, %Lf, %lu, A=%ld, B=%ld, Result= %ld",
-              operationName, timeDelta, loopIterations,
-              (int64_t) inA, (int64_t) inB, (int64_t) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64_t, %s, %Lf, %lu, %ld, %ld, %ld",
+               operationName, timeDelta, loopIterations,
+               (int64_t) inA, (int64_t) inB, (int64_t) outR);
     } else if (match_uint64_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64_t, %s, %Lf, %lu, A=%ld, B=%ld, Result= %ld",
-              operationName, timeDelta, loopIterations,
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64_t, %s, %Lf, %lu, %ld, %ld, %ld",
+               operationName, timeDelta, loopIterations,
                (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
     } else if (match_float_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "float, %s, %Lf, %lu, A=%.8f, B=%.8f, Result= %.8f",
-              operationName, timeDelta, loopIterations,
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "float, %s, %Lf, %lu, %.8f, %.8f, %.8f",
+               operationName, timeDelta, loopIterations,
                (float) inA, (float) inB, (float) outR);
     } else if (match_double_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "double, %s, %Lf, %lu, A=%.16f, B=%.16f, Result= %.16f",
-              operationName, timeDelta, loopIterations,
-              (double) inA, (double) inB, (double) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "double, %s, %Lf, %lu, %.16f, %.16f, %.16f",
+               operationName, timeDelta, loopIterations,
+               (double) inA, (double) inB, (double) outR);
     } else if (match_long_double_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, A=%.35Lf, B=%.35Lf, Result= %.35Lf",
-              operationName, timeDelta, loopIterations,
-              (long double) inA, (long double) inB, (long double) outR);
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, %.35Lf, %.35Lf, %.35Lf",
+               operationName, timeDelta, loopIterations,
+               (long double) inA, (long double) inB, (long double) outR);
     } else {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "Type=unknown_AtLine_%d, Operation=%s, TimeDelta=%Lf, LoopIterations=%ld, "
-             "A=unknown, B=unknown, Result=unknown",
-             __LINE__, operationName, timeDelta, loopIterations);
+      // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
+      snprintf(printBuffer, CHAR_BUFFER_SIZE,
+               "TypeSystem=unknown_AtLine_%d, OperationSetName=%s, TimeForOperations=%Lf, CountOfOperationsPerformed=%ld, "
+               "LHS=unknown, RHS=unknown, R=unknown",
+               __LINE__, operationName, timeDelta, loopIterations);
     }
     printf("%s\n", printBuffer);
     fprintf(writingFileContext, "%s\n", printBuffer);
@@ -765,8 +768,9 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   fclose(writingFileContext);
   // Create new file to append data.
   writingFileContext = fopen(filenameCPUData, "a+");
+  // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
   fprintf(writingFileContext,
-          "Type, Operation Set, Time for Operations, Count of Operations Performed, Random Last Bit of Computation Chain\n");
+          "Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R\n");
 
   // Prepare queue with function pointer index
   for (size_t i = 0; i < functionPointerListSize; i++) {
