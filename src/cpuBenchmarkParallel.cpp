@@ -65,7 +65,7 @@ extern "C++" {
 #define assertm(exp, msg) assert(((void)msg, exp))
 
 // @todo remove and modularize
-volatile size_t DATASET_SIZE = 4294967291; // 100000007;
+// volatile size_t DATASET_SIZE = 4294967291; // 100000007;
 // const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
 // FILE *writingFileContext = (FILE *) calloc(1, sizeof(FILE));
 
@@ -221,7 +221,7 @@ void testTypes_Template_Focused(void);
 template<typename Type>
 void *testTypes_Template_Pthread(void *inArgs);
 template<typename Type>
-void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext);
+void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext, size_t dataSetsSize);
 template<typename Type>
 void *my_test(void *args);
 
@@ -533,12 +533,12 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
 * @return
 *****************************************************************************/
 template<typename Type>
-void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext) {
+void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext, size_t datasetSize) {
   // float typelessResult = StructBinaryOperation<float, float, float, float, float>()(&(typelessSubtract), inA, inB);
   FILE *writeFileContext;
   long double timeStart, timeStop, timeDelta;
   bool isOdd;
-  size_t loopIterations = DATASET_SIZE;
+  size_t loopIterations = datasetSize;
   Type typelessResult_add, typelessResult_sub, typelessResult_mul, typelessResult_div;
 
   // Simple delete of old file.
@@ -628,19 +628,20 @@ void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext) {
 * @return
 *****************************************************************************/
 void *testTypes_Exact(void *inArgs) {
-  void *danglePtr = NULL;
-  FILE* fileContext = NULL;
-  testTypes_Template_typeless<int8_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<uint8_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<int16_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<uint16_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<int32_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<uint32_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<int64_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<uint64_t>(3.14, 42, fileContext);
-  testTypes_Template_typeless<float>(3.14, 42, fileContext);
-  testTypes_Template_typeless<double>(3.14, 42, fileContext);
-  testTypes_Template_typeless<long double>(3.14, 42, fileContext);
+  void *danglePtr = NULL; // @todo fixme
+  FILE* fileContext = NULL; // @todo fixme
+  size_t dataSetsSize =  1; // @todo fixme
+  testTypes_Template_typeless<int8_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint8_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int16_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint16_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int32_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint32_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int64_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint64_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<float>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<double>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<long double>(3.14, 42, fileContext, dataSetsSize);
   return danglePtr;
 }
 
@@ -663,6 +664,7 @@ void testTypes_Template_Focused(void) {
   double randomInputs_double_t[arraySize];
   long double randomInputs_long_double_t[arraySize];
   FILE * fileContext = NULL; // @todo fixme
+  size_t dataSetsSize = 1; // @todo
 
   for (size_t i = 0; i < arraySize; i++) {
     randomInputs_int8_t[i] = gauss_rand<int8_t>(randSelect);
@@ -678,17 +680,17 @@ void testTypes_Template_Focused(void) {
     randomInputs_long_double_t[i] = gauss_rand<long double>(randSelect);
   }
 
-  testTypes_Template_typeless<int8_t>(randomInputs_int8_t[0], randomInputs_int8_t[1], fileContext);
-  testTypes_Template_typeless<uint8_t>(randomInputs_uint8_t[0], randomInputs_uint8_t[1], fileContext);
-  testTypes_Template_typeless<int16_t>(randomInputs_int16_t[0], randomInputs_int16_t[1], fileContext);
-  testTypes_Template_typeless<uint16_t>(randomInputs_uint16_t[0], randomInputs_uint16_t[1], fileContext);
-  testTypes_Template_typeless<int32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext);
-  testTypes_Template_typeless<uint32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext);
-  testTypes_Template_typeless<int64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext);
-  testTypes_Template_typeless<uint64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext);
-  testTypes_Template_typeless<float>(randomInputs_float_t[0], randomInputs_float_t[1], fileContext);
-  testTypes_Template_typeless<double>(randomInputs_double_t[0], randomInputs_double_t[1], fileContext);
-  testTypes_Template_typeless<long double>(randomInputs_long_double_t[0], randomInputs_long_double_t[1], fileContext);
+  testTypes_Template_typeless<int8_t>(randomInputs_int8_t[0], randomInputs_int8_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint8_t>(randomInputs_uint8_t[0], randomInputs_uint8_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int16_t>(randomInputs_int16_t[0], randomInputs_int16_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint16_t>(randomInputs_uint16_t[0], randomInputs_uint16_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<float>(randomInputs_float_t[0], randomInputs_float_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<double>(randomInputs_double_t[0], randomInputs_double_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<long double>(randomInputs_long_double_t[0], randomInputs_long_double_t[1], fileContext, dataSetsSize);
   return;
 }
 
@@ -701,6 +703,7 @@ void *testTypes_Template_Pthread(void *inArgs) {
   void *danglePtr = NULL;
   threadContextMeta_t *thread_info = (threadContextMeta_t *) inArgs;
   FILE * fileContext = NULL; // @todo fixme
+  size_t dataSetSize = 1;
   const size_t arraySize = 2;
   const int randSelect = 3;
   Type randomInputs_Type_t[arraySize];
@@ -709,7 +712,7 @@ void *testTypes_Template_Pthread(void *inArgs) {
     randomInputs_Type_t[i] = gauss_rand<Type>(randSelect);
   }
 
-  testTypes_Template_typeless<Type>(randomInputs_Type_t[0], randomInputs_Type_t[1], fileContext);
+  testTypes_Template_typeless<Type>(randomInputs_Type_t[0], randomInputs_Type_t[1], fileContext, dataSetSize);
   return danglePtr;
 }
 
@@ -777,7 +780,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     threadContextData->isExecuting = isExecuting;
 
     if (NULL == threadContextData->saveFilename) {
-      threadContextData->saveFilename = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      threadContextData->saveFilename = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
     strncpy(threadContextData->saveFilename, saveFilename, CHAR_BUFFER_SIZE);
 
@@ -787,7 +790,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
 
     // Construct string array
     if (NULL == threadContextData->datatypeIDName) {
-      threadContextData->datatypeIDName = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      threadContextData->datatypeIDName = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
     // Extract name from type
     Type tmp;
@@ -799,7 +802,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     memcpy(threadContextData->resultantsMeta, resultantsMeta, resultantsMetaSize);
 
     if (NULL == threadContextData->messages) {
-      threadContextData->messages = malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      threadContextData->messages = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
     strncpy(threadContextData->messages, messages, CHAR_BUFFER_SIZE);
 
@@ -1132,6 +1135,7 @@ void *my_test(void *args) {
   size_t threadIDNumber = (size_t) &args;
   printf("Starting %ld...", threadIDNumber);
   FILE * fileContext = NULL; // @todo fixme
+  size_t dataSetSize = 1; // @todo fixme
   Type inType;
   char *name = (char *) (typeid(inType).name());
   double t1;
@@ -1188,7 +1192,7 @@ void *my_test(void *args) {
 
   // Addition
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_add += v9;
     v_add += v0;
     v_add += v1;
@@ -1205,11 +1209,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, add, %f, [%d]\n", name, getTime() - t1, (int) v_add & 1);
   fprintf(fileContext, "%s, add, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_add & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_add & 1);
 
   // Subtraction
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_sub -= v9;
     v_sub -= v0;
     v_sub -= v1;
@@ -1226,11 +1230,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, sub, %f, [%d]\n", name, getTime() - t1, (int) v_sub & 1);
   fprintf(fileContext, "%s, sub, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_sub & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_sub & 1);
 
   // Addition/Subtraction
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_addsub += v9;
     v_addsub += v0;
     v_addsub -= v1;
@@ -1247,11 +1251,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, add/sub, %f, [%d]\n", name, getTime() - t1, (int) v_addsub & 1);
   fprintf(fileContext, "%s, add/sub, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_addsub & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_addsub & 1);
 
   // Multiply
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_mul *= v9;
     v_mul *= v0;
     v_mul *= v1;
@@ -1268,11 +1272,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, mul, %f, [%d]\n", name, getTime() - t1, (int) v_mul & 1);
   fprintf(fileContext, "%s, mul, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_mul & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_mul & 1);
 
   // Divide
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_div /= v9;
     v_div /= v0;
     v_div /= v1;
@@ -1289,11 +1293,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, div, %f, [%d]\n", name, getTime() - t1, (int) v_div & 1);
   fprintf(fileContext, "%s, div, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_div & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_div & 1);
 
   // Multiply/Divide
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_muldiv *= v9;
     v_muldiv *= v0;
     v_muldiv /= v1;
@@ -1310,11 +1314,11 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, mul/div, %f, [%d]\n", name, getTime() - t1, (int) v_muldiv & 1);
   fprintf(fileContext, "%s, mul/div, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10), (int) v_muldiv & 1);
+          (unsigned long long int) (dataSetSize * 10), (int) v_muldiv & 1);
 
   // Square/SquareRoot/Multiply
   t1 = getTime();
-  for (volatile size_t i = 0; i < DATASET_SIZE; ++i) {
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
     v_sqsqrtmul *= sqrt(v9 * v9);
     v_sqsqrtmul *= sqrt(v0 * v0);
     v_sqsqrtmul *= sqrt(v1 * v1);
@@ -1331,7 +1335,7 @@ void *my_test(void *args) {
   //  the loop completely
   printf("%s, mul/sqrt/sq, %f, [%d]\n", name, getTime() - t1, (int) v_sqsqrtmul & 1);
   fprintf(fileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, getTime() - t1,
-          (unsigned long long int) (DATASET_SIZE * 10 * 3), (int) v_sqsqrtmul & 1);
+          (unsigned long long int) (dataSetSize * 10 * 3), (int) v_sqsqrtmul & 1);
   printf("Ending %ld...", threadIDNumber);
 
   return voidPtr;
@@ -1670,10 +1674,10 @@ fileState_et fileIsExecutable(const char fileName[CHAR_BUFFER_SIZE]) {
   bool fileStatus = !access(fileName, X_OK);
   if (fileStatus) {
     printf("The File %s is an Executable\n", fileName);
-    activeFileState = fs_Unknown_vet;
+    activeFileState = fs_IsExecutable_vet;
   } else {
     printf("The File %s is not an Executable\n", fileName);
-    activeFileState = fs_Unknown_vet;
+    activeFileState = fs_IsNotExecutable_vet;
   }
   return activeFileState;
 }
