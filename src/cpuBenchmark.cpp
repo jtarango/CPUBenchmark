@@ -15,6 +15,7 @@
  *ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  =============================================================================*/
 // #pragma once // Only used in header files.
+// #pragma once // Only used in header files.
 
 #ifndef __cplusplus
 extern "C++" {

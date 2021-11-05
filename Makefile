@@ -297,7 +297,8 @@ create_dirs:
 
 # Remove unnecessary files
 clean:
-	$(RM) -rf *~ $(BDIR)/*.a $(ODIR)/*.o $(LIBDIR)/*.so $(IDIR)/*.so $(ILDIR)/*.so $(PSPRINT) $(PDFPRINT) $(TARNAME) *.pdf *.ps $(FILES_TO_CLEAN) $(FILES_TO_CLEAN_MOVED)
+	$(RM) -rf *~ $(TARBALLDIR)/*~ $(BDIR)/*.a $(ODIR)/*.o $(LIBDIR)/*.so $(IDIR)/*.so $(ILDIR)/*.so
+	$(RM) -rf $(PSPRINT) $(PDFPRINT) $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/*.pdf $(TARBALLDIR)/*.ps $(FILES_TO_CLEAN) $(FILES_TO_CLEAN_MOVED)
 .PHONY: clean
 
 ########################################################################################################################
@@ -316,7 +317,7 @@ printpdf:
 
 # Create a tar ball for project
 turnin: print printpdf
-	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES)
+	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES) $(BDIR)/$(TEST_CPP_BIN).a $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 .PHONY: turnin
 
 ########################################################################################################################
@@ -365,6 +366,3 @@ grinder: create_dirs
 	$(info Debugging program log is grinder.log)
 	$(FPBENCH_GRIND) --undef-value-errors=no --main-stacksize=99999999 --max-stackframe=99999999 --valgrind-stacksize=10485760 --num-callers=500 --verbose --log-file=$(BDIR)/grinder.log $(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: grinder
-
-
-
