@@ -67,14 +67,18 @@ CURRENT_PATH := $(subst $(lastword $(notdir $(MAKEFILE_LIST))),,$(subst $(space)
 
 SRCDIR=$(CURRENT_PATH)src
 
+DATADIR=$(CURRENT_PATH)data
+
 ###############################################################################
 # Build Dir
 ###############################################################################
 BDIR=$(CURRENT_PATH)builds
+TARBALLDIR=$(BDIR)/package
 
 # Test harnesses
 TEST_CPP_BIN=cpuBenchmark
 TEST_CPP_FILE=$(SRCDIR)/cpuBenchmark.cpp
+
 TEST_PARALLEL_CPP_BIN=cpuBenchmarkParallel
 TEST_PARALLEL_CPP_FILE=$(SRCDIR)/cpuBenchmarkParallel.cpp
 
@@ -287,6 +291,8 @@ create_dirs:
 	$(MD) -p $(IDIR)
 	$(MD) -p $(ILDIR)
 	$(MD) -p $(PLTDIR)
+	$(MD) -p $(DATADIR)
+	$(MD) -p $(TARBALLDIR)
 .PHONY: create_dirs
 
 # Remove unnecessary files
@@ -294,31 +300,30 @@ clean:
 	$(RM) -rf *~ $(BDIR)/*.a $(ODIR)/*.o $(LIBDIR)/*.so $(IDIR)/*.so $(ILDIR)/*.so $(PSPRINT) $(PDFPRINT) $(TARNAME) *.pdf *.ps $(FILES_TO_CLEAN) $(FILES_TO_CLEAN_MOVED)
 .PHONY: clean
 
-
 ########################################################################################################################
 # PDF and zip file generation.
 ########################################################################################################################
 # Print files to a .ps document
 print:
-	$(A2PS) -M letter --line-numbers=1 --pro=color --highlight-level=light --pretty-print -o $(PSPRINT) $(FILES)
+	$(A2PS) -M letter --line-numbers=1 --pro=color --highlight-level=light --pretty-print -o $(TARBALLDIR)/$(PSPRINT) $(FILES)
 .PHONY: print
 
 printpdf:
 	$(ENSCRIPT) -2 --fancy-header --line-numbers=1 --truncate-lines \
 	--word-wrap --style=emacs --tabsize=3 --landscape $(FILES) \
-	-o - | ps2pdfwr - $(PDFPRINT)
+	-o - | ps2pdfwr - $(TARBALLDIR)/$(PDFPRINT)
 .PHONY: printpdf
 
 # Create a tar ball for project
 turnin: print printpdf
-	$(TR) -czvf $(TARNAME) $(PSPRINT) $(PDFPRINT) $(FILES)
+	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES)
 .PHONY: turnin
 
 ########################################################################################################################
 # Compile major parts.
 ########################################################################################################################
 # compile_dynamicpt
-compile_all: create_dirs cpuBenchmark
+compile_all: create_dirs cpuBenchmark cpuBenchmarkParallel
 	$(info Compiling all...)
 .PHONY: compile_all
 
@@ -327,23 +332,29 @@ cpuBenchmark: create_dirs
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 .PHONY: cpuBenchmark
 
+cpuBenchmarkParallel: create_dirs
+	$(info Compile cpuBenchmark parallel testharness)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LDFLAGS_PTHREAD) $(LIBS)
+.PHONY: cpuBenchmarkParallel
+
+########################################################################################################################
+# Execute Program
+########################################################################################################################
 run_cpuBenchmark: create_dirs cpuBenchmark
 	$(info Run cpuBenchmark testharness)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: run_cpuBenchmark
 
+########################################################################################################################
+# Performance profile execute and compile
+########################################################################################################################
 cpuBenchmarkFaster: create_dirs
 	$(info Making program faster by -fprofile-generate -fprofile-use)
-	$(COMPILER)            $(COMPILEFLAGS)     -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
-	$(COMPILER)            $(COMPILEFLAGS)     -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: cpuBenchmarkFaster
-
-cpuBenchmarkParallel: create_dirs
-	$(info Compile cpuBenchmark parallel testharness)
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LDFLAGS_PTHREAD) $(LIBS)
-.PHONY: cpuBenchmarkParallel
 
 ########################################################################################################################
 # Debugging make file options. Only for developer usage.
