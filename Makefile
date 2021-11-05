@@ -305,18 +305,18 @@ clean:
 # PDF and zip file generation.
 ########################################################################################################################
 # Print files to a .ps document
-print:
+print: create_dirs
 	$(A2PS) -M letter --line-numbers=1 --pro=color --highlight-level=light --pretty-print -o $(TARBALLDIR)/$(PSPRINT) $(FILES)
 .PHONY: print
 
-printpdf:
+printpdf: create_dirs
 	$(ENSCRIPT) -2 --fancy-header --line-numbers=1 --truncate-lines \
 	--word-wrap --style=emacs --tabsize=3 --landscape $(FILES) \
 	-o - | ps2pdfwr - $(TARBALLDIR)/$(PDFPRINT)
 .PHONY: printpdf
 
 # Create a tar ball for project
-turnin: print printpdf
+turnin: create_dirs print printpdf
 	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES) $(BDIR)/$(TEST_CPP_BIN).a $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 .PHONY: turnin
 
