@@ -64,6 +64,16 @@ extern "C++" {
 // Use (void) to silent unused warnings.
 #define assertm(exp, msg) assert(((void)msg, exp))
 
+#define OPERANDS_2_IN 2
+#define RESULTANTS_1_OUT 1
+/* Random Method Selection
+ * 1=RAND based random number generator.
+ * 2=Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
+ * 3=Use a method described by Abramowitz and Stegun.
+ * 4=Use a method discussed in Knuth and due originally to Marsaglia.
+*/
+#define RANDOM_METHOD 4 // Random Method to select
+
 // @todo remove and modularize
 // volatile size_t DATASET_SIZE = 4294967291; // 100000007;
 // const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
@@ -155,6 +165,8 @@ fileState_et fileIsExecutable(const char fileName[CHAR_BUFFER_SIZE]);
 
 uint32_t fileCheckAll(const char fileName[CHAR_BUFFER_SIZE]);
 
+bool fileGetCurrentWorkingDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]);
+
 bool fileMakeDirectory(const char absoluteFolderPath[CHAR_BUFFER_SIZE]);
 
 void fileMakeDirectories(const char absoluteFolderPath[CHAR_BUFFER_SIZE]);
@@ -211,6 +223,8 @@ classType performPrint(classType inA, classType inB, classType outR, const char 
 
 // Print function for Arithmetic
 template<class classType>
+void typelessStringName(classType inA, char printBuffer[CHAR_BUFFER_SIZE], bool printName);
+template<class classType>
 classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE],
                         FILE *writeFileContext, long double timeDelta, size_t loopIterations);
 
@@ -218,7 +232,6 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
 void testTypes(void);
 void *testTypes_Exact(void *inArgs);
 void testTypes_Template_Focused(void);
-template<typename Type>
 void *testTypes_Template_Pthread(void *inArgs);
 template<typename Type>
 void testTypes_Template_typeless(Type inA, Type inB, FILE* fileContext, size_t dataSetsSize);
@@ -241,94 +254,16 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
                            size_t operandsMetaSize,
                            Type *resultantsMeta,
                            size_t resultantsMetaSize,
-                           char messages[CHAR_BUFFER_SIZE]);
+                           char messages[CHAR_BUFFER_SIZE],
+                           const std::string fileHeader);
 
 bool threadContextArray_init(threadContextArray_t *threadContextArrayData,
                              size_t reserveSize);
 
-// @todo disabled and not in use
-/*======================================================================================================================
- * Struct for template function pointers
- * ===================================================================================================================*/
-// @note investigate deconstructing function pointers in a C++ templates for more generic usage.
-// Function passed as template argument
-// typedef struct StructBinaryOperation {
-//  template<typename typeResult, typename typeS, typename typeT, typename typeU, typename typeV>
-//  typeResult operator()(typeResult (*binaryOperation )(typeS, typeT), typeU u, typeV v) {
-//    return binaryOperation(u, v);
-//  }
-//} StructBinaryOperation_t;
-
-/*======================================================================================================================
- * Template function pointer helpers
- * ===================================================================================================================*/
-// @todo disabled and not in use
-// Uses pointer to a function that takes a void and returns void. Explicitly gives the template argument for fakeTemplateFunction
-// void topFunctionPointer(returnData (*functionPointer)(type *arguments)) {}
-// Example: return_type=char*, input_type=int*
-//          void headlessFunction(char* (*pf)(int*)) {}
-// void headlessFunction(void (*pf)(void)) {}
-
-// Template function pointer that takes a template type
-// template<typename Type> void fakeTemplateFunction(Type *) {}
-
-// Function that wants the function pointer as an argument can itself be a template.
-// template<typename Type> void gateFunction(void (*pf)(Type *)) {}
-
-// Taking the address of a generated function template
-// I.E. Usages and explanation
-// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
-// headlessFunction(&fakeTemplateFunction); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
-// gateFunction(&fakeTemplateFunction<int>); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
-// void headlessFunctionDux(float (*pf)(float)) {}
-
-// Template function pointer that takes a template type
-// template<typename Type> Type fakeTemplateFunctionDux(Type *) {}
-
-// Function that wants the function pointer as an argument can itself be a template.
-// template<typename Type> Type gateFunctionDux(void (*pf)(Type *)) {}
-// I.E. Usages and explanation
-// headlessFunction(&fakeTemplateFunction<int*>); // Full type specification
-// headlessFunction(&fakeTemplateFunction); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction<int>); // Full type specification
-// gateFunction(&fakeTemplateFunction<int>); // Type deduction
-// gateFunction<int>(&fakeTemplateFunction); // Partial (but sufficient) specification
-
-//template<class ClassType> struct ExecFunc {
-//  typedef void(*type)(ClassType);
-//};
-
-//template <typename T, typename R, typename ...Args>
-//R proxyCall(T & obj, R (T::*mf)(Args...), Args &&... args)
-//{
-//  return (obj.*mf)(std::forward<Args>(args)...);
-//} // proxycall(obj, &hello::f)
-
-// typedef {
-//   void (*)(void);
-//} fptr_t;
-// Function pointer alias
-//typedef StructBinaryOperation_t func_ptr;
-// typedef void (*func_ptr <typename>)(void);
-// template <typename T, typename U>
-// using fPtrType = T(*)(U);
-/*{
-  my_test<volatile signed char>("signed char"),
-  my_test<volatile unsigned char>("unsigned char"),
-  my_test<volatile signed short>("signed short"),
-  my_test<volatile unsigned short>("unsigned short"),
-  my_test<volatile signed int>("signed int"),
-  my_test<volatile unsigned int>("unsigned int"),
-  my_test<volatile signed long>("signed long"),
-  my_test<volatile unsigned long>("unsigned long"),
-  my_test<volatile signed long long>("signed long long"),
-  my_test<volatile unsigned long long>("unsigned long long"),
-  my_test<volatile float>("float"),
-  my_test<volatile double>("double"),
-  my_test<volatile long double>("long double")};
- */
+template<typename Type>
+bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector,
+                                     size_t indexThread,
+                                     size_t dataSetSize);
 
 /*======================================================================================================================
  * Function definition and implementation
@@ -415,6 +350,80 @@ classType performPrint(classType inA, classType inB, classType outR, const char 
   // tPFunctor<classType> functor;
   // return functor(inA, inB, outR, operationName);
   return tPFunctor<classType>()(inA, inB, outR, operationName, writeFileContext, timeDelta, loopIterations);
+}
+
+/*****************************************************************************
+*
+* @return
+*****************************************************************************/
+// Note: using std::enable_if with anonymous type parameters
+// template <class classType, std::enable_if_t<!std::is_arithmetic<classType>::value>* = nullptr>
+template<class classType>
+void typelessStringName(classType inA, char printBuffer[CHAR_BUFFER_SIZE], bool printName) {
+  char inATypeName[CHAR_BUFFER_SIZE];
+  size_t inASize = sizeof(typeid(inA).name());
+  strncpy(inATypeName, typeid(inA).name(), inASize);
+
+  const char *uint8_Name = typeid(uint8_t).name();
+  const char *int8_Name = typeid(int8_t).name();
+  const char *uint16_Name = typeid(uint16_t).name();
+  const char *int16_Name = typeid(int16_t).name();
+  const char *uint32_Name = typeid(uint32_t).name();
+  const char *int32_Name = typeid(int32_t).name();
+  const char *uint64_Name = typeid(uint64_t).name();
+  const char *int64_Name = typeid(int64_t).name();
+  const char *float_Name = typeid(float).name();
+  const char *double_Name = typeid(double).name();
+  const char *long_double_Name = typeid(long double).name();
+
+  bool match_uint8_Name = strcmp(inATypeName, uint8_Name);
+  bool match_int8_Name = strcmp(inATypeName, int8_Name);
+  bool match_uint16_Name = strcmp(inATypeName, uint16_Name);
+  bool match_int16_Name = strcmp(inATypeName, int16_Name);
+  bool match_uint32_Name = strcmp(inATypeName, uint32_Name);
+  bool match_int32_Name = strcmp(inATypeName, int32_Name);
+  bool match_uint64_Name = strcmp(inATypeName, uint64_Name);
+  bool match_int64_Name = strcmp(inATypeName, int64_Name);
+  bool match_float_Name = strcmp(inATypeName, float_Name);
+  bool match_double_Name = strcmp(inATypeName, double_Name);
+  bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
+  /* IEEE-754 Precision of the representation for printing values.
+   * A 32-bit, single-precision IEEE754 number has 24 mantissa bits, which gives about 23+1 * log10(2) = 7.22 ~ 8 digits of precision.
+   * A 64-bit, double precision IEEE754 number has 53 mantissa bits, which gives about 52+1 * log10(2) = 15.95 ~ 16 digits of precision.
+   * A 128-bit, long double precision IEEE754 number has 112 mantissa bits, which gives about 112+1 * log10(2) = 34.01 ~ 35 digits of precision.
+   */
+  // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
+  if (match_int8_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8");
+  } else if (match_uint8_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8");
+  } else if (match_int16_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16");
+  } else if (match_uint16_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16");
+  } else if (match_int32_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32");
+  } else if (match_uint32_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32");
+  } else if (match_int64_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64");
+  } else if (match_uint64_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64");
+  } else if (match_float_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "float");
+  } else if (match_double_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "double");
+  } else if (match_long_double_Name) {
+    snprintf(printBuffer, CHAR_BUFFER_SIZE, "longdouble");
+  } else {
+    // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
+    snprintf(printBuffer, CHAR_BUFFER_SIZE,
+             "Type_Unknown_AtLine_%d", __LINE__);
+  }
+  if (printName) {
+    printf("%s\n", printBuffer);
+  }
+  return;
 }
 
 /******************************************************************************
@@ -698,21 +707,147 @@ void testTypes_Template_Focused(void) {
 *
 * @return
 *****************************************************************************/
+// @todo
 template<typename Type>
+bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector, size_t indexThread, size_t dataSetSize) {
+  // @todo fixme
+  const std::string fileHeader = "Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R";
+  const char fileDirectory[] = "data";
+  const char fileNamePrefix[] = "cpuBenchmarkPthreads_";
+  const char fileExtension[] = "cvs";// self generation file name.
+  char *directoryTree = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+  char *fileNameAbsolute = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+  char *typeNameBuffer = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+  char *messages = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+  FILE *fileContext;
+  Type *operandsMeta = (Type *) malloc(sizeof(Type) * OPERANDS_2_IN);
+  Type *resultantsMeta = (Type *) malloc(sizeof(Type) * RESULTANTS_1_OUT);
+  bool isValid;
+
+  // Move up one file directory
+  isValid = (0 != chdir(".."));
+  isValid = isValid && fileGetCurrentWorkingDirectory(directoryTree);
+  isValid = isValid && (directoryTree != NULL);
+  isValid = isValid && (fileNameAbsolute != NULL);
+  isValid = isValid && (typeNameBuffer != NULL);
+  isValid = isValid && (messages != NULL);
+
+  threadContextMeta_t *threadItem = &threadVector->threadContextVectorMeta[indexThread];
+
+  fileContext = (FILE *) malloc(sizeof(FILE));
+  operandsMeta[0] = gauss_rand<Type>(RANDOM_METHOD);
+  operandsMeta[1] = gauss_rand<Type>(RANDOM_METHOD);
+  setCharArray(messages);
+  typelessStringName(operandsMeta[0], typeNameBuffer, false);
+  isValid = isValid && threadContextMeta_init(threadItem);
+  snprintf(fileNameAbsolute, CHAR_BUFFER_SIZE, "%s%s%s_thread%ld.%s",
+           fileDirectory, fileNamePrefix, typeNameBuffer, indexThread, fileExtension);
+
+  threadContextMeta_set<Type>(threadItem,
+                              dataSetSize,
+                              indexThread,
+                              0,
+                              fileNameAbsolute,
+                              operandsMeta,
+                              OPERANDS_2_IN,
+                              resultantsMeta,
+                              RESULTANTS_1_OUT,
+                              messages,
+                              fileHeader.c_str());
+  return isValid;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
 void *testTypes_Template_Pthread(void *inArgs) {
   void *danglePtr = NULL;
-  threadContextMeta_t *thread_info = (threadContextMeta_t *) inArgs;
-  FILE * fileContext = NULL; // @todo fixme
-  size_t dataSetSize = 1;
-  const size_t arraySize = 2;
-  const int randSelect = 3;
-  Type randomInputs_Type_t[arraySize];
+  threadContextMeta_t *threadInfo = (threadContextMeta_t *) inArgs;
+  // @todo fixme
+  char* inOperandTypeName = (char*) malloc(sizeof(char)*CHAR_BUFFER_SIZE);
+  size_t inOperandSize = sizeof(typeid(threadInfo->operandsMeta[0]).name());
+  strncpy(inOperandTypeName, typeid(threadInfo->operandsMeta[0]).name(), inOperandSize);
 
-  for (size_t i = 0; i < arraySize; i++) {
-    randomInputs_Type_t[i] = gauss_rand<Type>(randSelect);
+  const char *uint8_Name = typeid(uint8_t).name();
+  const char *int8_Name = typeid(int8_t).name();
+  const char *uint16_Name = typeid(uint16_t).name();
+  const char *int16_Name = typeid(int16_t).name();
+  const char *uint32_Name = typeid(uint32_t).name();
+  const char *int32_Name = typeid(int32_t).name();
+  const char *uint64_Name = typeid(uint64_t).name();
+  const char *int64_Name = typeid(int64_t).name();
+  const char *float_Name = typeid(float).name();
+  const char *double_Name = typeid(double).name();
+  const char *long_double_Name = typeid(long double).name();
+  bool match_uint8_Name = strcmp(inOperandTypeName, uint8_Name);
+  bool match_int8_Name = strcmp(inOperandTypeName, int8_Name);
+  bool match_uint16_Name = strcmp(inOperandTypeName, uint16_Name);
+  bool match_int16_Name = strcmp(inOperandTypeName, int16_Name);
+  bool match_uint32_Name = strcmp(inOperandTypeName, uint32_Name);
+  bool match_int32_Name = strcmp(inOperandTypeName, int32_Name);
+  bool match_uint64_Name = strcmp(inOperandTypeName, uint64_Name);
+  bool match_int64_Name = strcmp(inOperandTypeName, int64_Name);
+  bool match_float_Name = strcmp(inOperandTypeName, float_Name);
+  bool match_double_Name = strcmp(inOperandTypeName, double_Name);
+  bool match_long_double_Name = strcmp(inOperandTypeName, long_double_Name);
+  if (match_int8_Name) {
+    testTypes_Template_typeless<int8_t>(threadInfo->operandsMeta[0],
+                                      threadInfo->operandsMeta[1],
+                                      threadInfo->saveFileContext,
+                                      threadInfo->loopSetSize);
+  } else if (match_uint8_Name) {
+    testTypes_Template_typeless<uint8_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_int16_Name) {
+    testTypes_Template_typeless<int16_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_uint16_Name) {
+    testTypes_Template_typeless<uint16_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_int32_Name) {
+    testTypes_Template_typeless<int32_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_uint32_Name) {
+    testTypes_Template_typeless<uint32_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_int64_Name) {
+    testTypes_Template_typeless<int64_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_uint64_Name) {
+    testTypes_Template_typeless<uint64_t>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_float_Name) {
+    testTypes_Template_typeless<float>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_double_Name) {
+    testTypes_Template_typeless<double>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
+  } else if (match_long_double_Name) {
+    testTypes_Template_typeless<long double>(threadInfo->operandsMeta[0],
+                                        threadInfo->operandsMeta[1],
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
   }
-
-  testTypes_Template_typeless<Type>(randomInputs_Type_t[0], randomInputs_Type_t[1], fileContext, dataSetSize);
+  danglePtr = (void*)threadInfo;
   return danglePtr;
 }
 
@@ -766,12 +901,14 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
                            uint16_t threadTag,
                            uint8_t isExecuting,
                            char saveFilename[CHAR_BUFFER_SIZE],
-                           FILE *saveFileContext,
                            Type *operandsMeta,
                            size_t operandsMetaSize,
                            Type *resultantsMeta,
                            size_t resultantsMetaSize,
-                           char messages[CHAR_BUFFER_SIZE]) {
+                           char messages[CHAR_BUFFER_SIZE],
+                           const std::string fileHeader) {
+  Type tmp;
+  size_t dataTypeSize;
   bool isAllocated = false;
 
   if (NULL != threadContextData) {
@@ -782,19 +919,28 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     if (NULL == threadContextData->saveFilename) {
       threadContextData->saveFilename = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
-    strncpy(threadContextData->saveFilename, saveFilename, CHAR_BUFFER_SIZE);
+    if (threadContextData->saveFilename != NULL) {
+      setCharArray(threadContextData->saveFilename);
+      strncpy(threadContextData->saveFilename, saveFilename, CHAR_BUFFER_SIZE);
+    }
 
     if (NULL == threadContextData->saveFileContext) {
-      threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "w");
+      if (fs_Found_vet == fileIsFound(threadContextData->saveFilename)) {
+        fileDelete(threadContextData->saveFilename);
+        fileOverwriteNil(threadContextData->saveFilename);
+        fileMakeDirectories(threadContextData->saveFilename);
+        fileCreate(threadContextData->saveFilename, (char*) fileHeader.c_str());
+        threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "a+");
+      }
     }
 
     // Construct string array
     if (NULL == threadContextData->datatypeIDName) {
       threadContextData->datatypeIDName = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
+    setCharArray(threadContextData->datatypeIDName);
     // Extract name from type
-    Type tmp;
-    size_t dataTypeSize = sizeof(typeid(tmp).name());
+    dataTypeSize = sizeof(typeid(tmp).name());
     strncpy(threadContextData->datatypeIDName, typeid(tmp).name(), dataTypeSize);
 
     // Copy over meta data for operands and resultants
@@ -804,6 +950,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     if (NULL == threadContextData->messages) {
       threadContextData->messages = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
     }
+    setCharArray(threadContextData->messages);
     strncpy(threadContextData->messages, messages, CHAR_BUFFER_SIZE);
 
     isAllocated = true;
@@ -826,16 +973,27 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 #endif // LIBRARY_MODE
 {
   printArgs(argc, argv);
-
+  // @todo fixme
+  volatile size_t dataSetSize = INT8_MAX; // 4294967291; // 100000007;
+  size_t testSize = 11;
+  bool isValid;
   std::vector<size_t> notStartedQueue;
   std::vector<size_t> inProgressQueue;
   std::vector<size_t> completedQueue;
   std::vector<size_t> errorQueue;
   size_t coreCount = getNumCores();
-  size_t activeThreadCount = 0;
-  size_t threadStatus, threadIndex;
-  size_t notStartedSize, inProgressSize;
-  threadContextMeta_t *threadContextData = (threadContextMeta_t *) malloc(sizeof(threadContextMeta_t));
+  size_t activeThreadCount;
+  size_t threadStatus;
+  size_t threadIndex;
+  size_t notStartedSize;
+  size_t inProgressSize;
+  func_ptr myTypelessTestFuncs;
+  threadContextArray_t threadVector;
+  threadContextMeta_t *threadContextData;
+  pthread_t *threadContext;
+  size_t *threadID;
+
+  activeThreadCount = 0;
   // Function pointer list
   // @todo C++: Generate array to function pointers in a loop.
   func_ptr myTestFuncs[] = {
@@ -854,55 +1012,26 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
     (&my_test<volatile long double>)
   };
 
-  func_ptr myTypelessTestFuncs[] = {
-    testTypes_Template_Pthread<int8_t>,
-    testTypes_Template_Pthread<uint8_t>,
-    testTypes_Template_Pthread<int16_t>,
-    testTypes_Template_Pthread<uint16_t>,
-    testTypes_Template_Pthread<int32_t>,
-    testTypes_Template_Pthread<uint32_t>,
-    testTypes_Template_Pthread<int64_t>,
-    testTypes_Template_Pthread<uint64_t>,
-    testTypes_Template_Pthread<float>,
-    testTypes_Template_Pthread<double>,
-    testTypes_Template_Pthread<long double>
-  };
-  size_t functionPointerListSize = sizeof(myTestFuncs) / sizeof(myTestFuncs[0]);
-  pthread_t *threadContext = new pthread_t[functionPointerListSize];
-  size_t *threadID = new size_t[functionPointerListSize];
+  myTypelessTestFuncs = testTypes_Template_Pthread;
+  threadContextArray_init(&threadVector, testSize);
+  testTypes_Template_Pthread_init<int8_t>(&threadVector, 0, dataSetSize);
+  testTypes_Template_Pthread_init<uint8_t>(&threadVector, 1, dataSetSize);
+  testTypes_Template_Pthread_init<int16_t>(&threadVector, 2, dataSetSize);
+  testTypes_Template_Pthread_init<uint16_t>(&threadVector, 3, dataSetSize);
+  testTypes_Template_Pthread_init<int32_t>(&threadVector, 4, dataSetSize);
+  testTypes_Template_Pthread_init<uint32_t>(&threadVector, 5, dataSetSize);
+  testTypes_Template_Pthread_init<int64_t>(&threadVector, 6, dataSetSize);
+  testTypes_Template_Pthread_init<uint64_t>(&threadVector, 7, dataSetSize);
+  testTypes_Template_Pthread_init<float>(&threadVector, 8, dataSetSize);
+  testTypes_Template_Pthread_init<double>(&threadVector, 9, dataSetSize);
+  testTypes_Template_Pthread_init<long double>(&threadVector, 10, dataSetSize);
 
-  // @todo fixme
-  // volatile size_t DATASET_SIZE = 4294967291; // 100000007;
-  const char filenameCPUData[] = "cpu_benchmark_pthreads.csv"; // Random
-  const char fileNamePrefix[] = "cpuBenchmarkPthreads_";
-  char directoryTree[CHAR_BUFFER_SIZE]; // @todo fixme
-  const char fileDirectory[] = "data";
-  const char fileExtension[] = "cvs";// self generation file name.
-  FILE *fileContext = (FILE *) calloc(1, sizeof(FILE));
-  // Move up one file directory
-  if (0 != chdir("..")) {
-    getcwd(directoryTree, CHAR_BUFFER_SIZE);
-  }
-  char fileNameAbsolute[CHAR_BUFFER_SIZE]; // @todo fixme
-  for(threadIndex = 0; threadIndex < coreCount; threadIndex++){
-    snprintf(fileNameAbsolute, CHAR_BUFFER_SIZE, "%s%s_thread%ld.%s",
-             fileDirectory, fileNamePrefix, threadIndex, fileExtension);
-  }
-
-  // Simple delete of old file.
-  // fileContext = fopen(filenameCPUData, "w");
-  // fprintf(fileContext, "\n");
-  // fclose(fileContext);
-  // Create new file to append data.
-  fileContext = fopen(filenameCPUData, "a+");
-  // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
-  fprintf(fileContext,
-          "Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R\n");
-
+  threadContext = (pthread_t*) malloc(sizeof(pthread_t)*testSize);
+  threadID = (size_t*) malloc(sizeof(size_t)*testSize);
   // Prepare queue with function pointer index
-  for (size_t i = 0; i < functionPointerListSize; i++) {
-    threadID[i] = i;
-    push_back(notStartedQueue, i);
+  for (size_t i = 0; i < threadVector.threadContextVectorMeta.size(); i++) {
+    threadID[i] = threadVector.threadContextVectorMeta[i].threadTag;
+    push_back(notStartedQueue, threadID[i]);
   }
 
   // Loop to continue processing while threads are moved from "not started" to "in progress" then "completed".
@@ -918,7 +1047,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
         threadStatus = pthread_create(&threadContext[threadIndex],
                                       NULL,
                                       myTestFuncs[threadIndex],
-                                      &threadID[threadIndex]);
+                                      &threadVector.threadContextVectorMeta[threadIndex]);
         if (0 == threadStatus) {
           push_back(inProgressQueue, threadIndex);
           activeThreadCount++;
@@ -961,11 +1090,18 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   }
 
   // Waits for threads to complete
-  for (size_t i = 0; i < functionPointerListSize; i++) {
+  for (size_t i = 0; i < testSize; i++) {
     pthread_join(threadContext[i], NULL);
   }
-  printFullPath(filenameCPUData);
-  fclose(fileContext);
+  // @todo fixme
+  // printFullPath(filenameCPUData);
+  // fclose(fileContext);
+
+  // Waits for threads to complete
+  for (size_t i = 0; i < testSize; i++) {
+    fclose(threadVector.threadContextVectorMeta[threadIndex].saveFileContext);
+    printFullPath(threadVector.threadContextVectorMeta[threadIndex].saveFilename);
+  }
 
   delete[] threadContext;
   delete[] threadID;
@@ -1396,8 +1532,7 @@ void push_back(std::vector<Type> &v, Type val) {
   return;
 }
 
-/*
- */
+
 /******************************************************************************
 * Random number generator.
 * Generate a uniformly distributed random value.
@@ -1412,7 +1547,7 @@ void push_back(std::vector<Type> &v, Type val) {
 template<class classType>
 classType gauss_rand(int select) {
   const int NSUM = 25; // Used for random number generators.
-  classType PI = acos(-1.0); // Exact PI number from math functions.
+  classType PI = acos(-1.0); // Exact 'PI' number from math functions.
   classType x, X, Z, selected;
   int i;
   static classType U, U1, U2, V, V1, V2, S;
@@ -1421,11 +1556,11 @@ classType gauss_rand(int select) {
   classType outR;
 
   switch (select) {
-    case 4:
+    case 1:
       // RAND based random number generator.
       selected = ((classType) (rand()) + 1.0) / ((classType) (RAND_MAX) + 1.0);
       break;
-    case 1:
+    case 2:
       // Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
       x = 0;
       for (i = 0; i < NSUM; i++) {
@@ -1435,7 +1570,7 @@ classType gauss_rand(int select) {
       x /= sqrt(NSUM / 12.0);
       selected = x;
       break;
-    case 2:
+    case 3:
       // Use a method described by Abramowitz and Stegun.
       if (phase == 0) {
         U = (rand() + 1.) / (RAND_MAX + 2.);
@@ -1449,7 +1584,7 @@ classType gauss_rand(int select) {
 
       selected = Z;
       break;
-    case 3:
+    case 4:
     default:
       // Use a method discussed in Knuth and due originally to Marsaglia.
       if (phase2 == 0) {
@@ -1703,6 +1838,31 @@ uint32_t fileCheckAll(const char fileName[CHAR_BUFFER_SIZE]) {
   allStates |= activeFileState;
 
   return allStates;
+}
+
+/******************************************************************************
+* Checks to see if able to get current directory.
+* @return  true if dir access occurred.
+*          false if failure in access.
+*****************************************************************************/
+bool fileGetCurrentWorkingDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
+  bool isAccessed = false;
+  errno = 0;
+  char * ret = getcwd(absoluteFolderPath, CHAR_BUFFER_SIZE);
+  if (NULL == ret) {
+    switch (errno) {
+      case EACCES:
+        printf("the parent directory does not allow write");
+        break;
+      default:
+        // EINVAL, EIO, ENOENT, ENOTDIR, ERANGE
+        errorAtLine();
+        break;
+    }
+  } else {
+    isAccessed = true;
+  }
+  return isAccessed;
 }
 
 /******************************************************************************
