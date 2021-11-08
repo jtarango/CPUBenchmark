@@ -346,6 +346,11 @@ run_cpuBenchmark: create_dirs cpuBenchmark
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: run_cpuBenchmark
 
+run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
+	$(info Run cpuBenchmarkParallel testharness)
+	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+.PHONY: run_cpuBenchmarkParallel
+
 ########################################################################################################################
 # Performance profile execute and compile
 ########################################################################################################################

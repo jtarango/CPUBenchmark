@@ -165,6 +165,8 @@ fileState_et fileIsExecutable(const char fileName[CHAR_BUFFER_SIZE]);
 
 uint32_t fileCheckAll(const char fileName[CHAR_BUFFER_SIZE]);
 
+bool fileUpCurrentDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]);
+
 bool fileGetCurrentWorkingDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]);
 
 bool fileMakeDirectory(const char absoluteFolderPath[CHAR_BUFFER_SIZE]);
@@ -722,17 +724,16 @@ bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector, size_t 
   FILE *fileContext;
   Type *operandsMeta = (Type *) malloc(sizeof(Type) * OPERANDS_2_IN);
   Type *resultantsMeta = (Type *) malloc(sizeof(Type) * RESULTANTS_1_OUT);
-  bool isValid;
+  bool isValid = true;
 
   // Move up one file directory
-  isValid = (0 != chdir(".."));
-  isValid = isValid && fileGetCurrentWorkingDirectory(directoryTree);
+  isValid = isValid && fileUpCurrentDirectory(directoryTree);
   isValid = isValid && (directoryTree != NULL);
   isValid = isValid && (fileNameAbsolute != NULL);
   isValid = isValid && (typeNameBuffer != NULL);
   isValid = isValid && (messages != NULL);
 
-  threadContextMeta_t *threadItem = &threadVector->threadContextVectorMeta[indexThread];
+  threadContextMeta_t *threadItem = &(threadVector->threadContextVectorMeta[indexThread]);
 
   fileContext = (FILE *) malloc(sizeof(FILE));
   operandsMeta[0] = gauss_rand<Type>(RANDOM_METHOD);
@@ -1546,25 +1547,53 @@ void push_back(std::vector<Type> &v, Type val) {
 *****************************************************************************/
 template<class classType>
 classType gauss_rand(int select) {
+  static unsigned int ranOnce = 0;
+  static time_t timeSinceEpoch = 0;
+  static int timeSeed = 0;
+  static double randomValue = 0.0;
+  size_t escapeCount;
+  const size_t escapeMax = UINT8_MAX;
+  if (ranOnce == 0){
+    ranOnce++;
+    timeSinceEpoch = time(NULL);
+    timeSeed = timeSinceEpoch^clock()>>1;
+    srand(timeSeed); // srand(clock()) or srand(NULL)
+  }
   const int NSUM = 25; // Used for random number generators.
-  classType PI = acos(-1.0); // Exact 'PI' number from math functions.
-  classType x, X, Z, selected;
+  double PI = acos(-1.0); // Exact 'PI' number from math functions.
+  double x, X, Z, selected;
   int i;
-  static classType U, U1, U2, V, V1, V2, S;
+  static long double U, U1, U2, V, V1, V2, S;
   static int phase = 0;
   static int phase2 = 0;
+  long long int c0, c1, c2, c3, c;
   classType outR;
 
   switch (select) {
+    case 0:
+      // Herb-grind, paper defined. Note: The randomness is not adequate for large machine learning data sets.
+      randomValue = rand();
+      c0 = (long long int)randomValue & 0xffff;
+      randomValue = rand();
+      c1 = (long long int)randomValue & 0xffff;
+      randomValue = rand();
+      c2 = (long long int)randomValue & 0xffff;
+      randomValue = rand();
+      c3 = (long long int)randomValue & 0xffff;
+      c = ((c3 << 48) | (c2 << 32) | (c1 << 16) | c0);
+      memcpy(&selected, &c, sizeof(c));
+      break;
     case 1:
       // RAND based random number generator.
-      selected = ((classType) (rand()) + 1.0) / ((classType) (RAND_MAX) + 1.0);
+      randomValue = rand();
+      selected = (randomValue + 1.0) / ((RAND_MAX) + 1.0);
       break;
     case 2:
       // Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
       x = 0;
       for (i = 0; i < NSUM; i++) {
-        x += (classType) rand() / (classType) RAND_MAX;
+        randomValue = rand();
+        x += randomValue / RAND_MAX;
       }
       x -= NSUM / 2.0;
       x /= sqrt(NSUM / 12.0);
@@ -1573,7 +1602,8 @@ classType gauss_rand(int select) {
     case 3:
       // Use a method described by Abramowitz and Stegun.
       if (phase == 0) {
-        U = (rand() + 1.) / (RAND_MAX + 2.);
+        randomValue = rand();
+        U = (randomValue + 1.) / (RAND_MAX + 2.);
         V = rand() / (RAND_MAX + 1.);
         Z = sqrt(-2 * log(U)) * sin(2 * PI * V);
       } else {
@@ -1588,13 +1618,20 @@ classType gauss_rand(int select) {
     default:
       // Use a method discussed in Knuth and due originally to Marsaglia.
       if (phase2 == 0) {
+        escapeCount = 0;
         do {
-          U1 = (classType) rand() / (classType) RAND_MAX;
-          U2 = (classType) rand() / (classType) RAND_MAX;
+          randomValue = rand();
+          U1 = randomValue / RAND_MAX;
+          randomValue = rand();
+          U2 = randomValue / RAND_MAX;
 
           V1 = 2 * U1 - 1;
           V2 = 2 * U2 - 1;
           S = V1 * V1 + V2 * V2;
+          if (escapeCount > escapeMax) {
+            errorAtLine();
+            break;
+          }
         } while (S >= 1 || S == 0);
 
         X = V1 * sqrt(-2 * log(S) / S);
@@ -1838,6 +1875,38 @@ uint32_t fileCheckAll(const char fileName[CHAR_BUFFER_SIZE]) {
   allStates |= activeFileState;
 
   return allStates;
+}
+
+/******************************************************************************
+* Gets current directory and moves up one.
+* @return  true if dir access occurred.
+*          false if failure in access.
+*****************************************************************************/
+bool fileUpCurrentDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
+  bool isAccessed = false;
+  errno = 0;
+  const char nilChar = '\0';
+#if (defined(__WIN32__) or defined(__WIN64__))
+  const char dirChar = '\\';
+#else
+  const char dirChar = '/';
+#endif // (defined(__WIN32__) or defined(__WIN64__))
+  fileGetCurrentWorkingDirectory(absoluteFolderPath);
+  size_t endLoc;
+  for (size_t i=0; i < CHAR_BUFFER_SIZE; i++){
+    endLoc = i;
+    if(nilChar == absoluteFolderPath[endLoc]){
+      break;
+    }
+  }
+  for (size_t i = endLoc; i > 0; i--){
+    if (dirChar == absoluteFolderPath[i]) {
+      absoluteFolderPath[i] = nilChar;
+      isAccessed = true;
+      break;
+    }
+  }
+  return isAccessed;
 }
 
 /******************************************************************************
