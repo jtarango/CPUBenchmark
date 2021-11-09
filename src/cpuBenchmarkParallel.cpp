@@ -594,7 +594,9 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
                  __LINE__, operationName, timeDelta, loopIterations);
         break;
     }
-    printf("%s\n", printBuffer);
+    if (ENABLE_DEBUG) {
+      printf("%s\n", printBuffer);
+    }
     fprintf(fileContext, "%s\n", printBuffer);
   }
   return outR;
@@ -1174,7 +1176,10 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   showUsage();
   printArgs(argc, argv);
   // @todo fixme
-  volatile size_t dataSetSize = INT8_MAX; // 4294967291; // 100000007;
+  const size_t waitTime = 6;
+  const size_t oneMinute = (waitTime >= 1)? (60/waitTime): waitTime;
+  size_t waitCount = 0;
+  volatile size_t dataSetSize = (1 << 26); // INT32_MAX is 31 bits, 100000007 is 26 bits;
   size_t testSize = 11;
   bool isValid;
   std::vector<size_t> notStartedQueue;
@@ -1192,6 +1197,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   threadContextMeta_t* threadContextData = NULL;
   pthread_t* threadContext = NULL;
   size_t *threadID = NULL;
+
+  setvbuf (stdout, NULL, _IONBF, BUFSIZ); // Set buffer size.
 
   activeThreadCount = 0;
   // Function pointer list
@@ -1252,6 +1259,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
         if (0 == threadStatus) {
           push_back(inProgressQueue, threadIndex);
           activeThreadCount++;
+          printf("Thread %ld started. Wait queue is %ld\n", threadIndex, notStartedQueue.size());
         } else if (EINVAL == threadStatus || EPERM == threadStatus) {
           fprintf(stderr, "Error on line %d : %s\n.Cannot create thread %ld: invalid setting or permission.", __LINE__,
                   strerror(errno), threadIndex);
@@ -1260,12 +1268,23 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
           printf("Cannot create thread %ld: resource limited.", threadIndex);
           push_back(notStartedQueue, threadIndex);
         }
+        notStartedSize--;
       }
-      notStartedSize--;
     }
 
     // Wait for some time so threads cann to do work...
-    sleep(32);
+    sleep(waitTime);
+    if (waitCount >= UINT64_MAX-1) {
+      waitCount = 0;
+    }
+    else{
+      waitCount++;
+    }
+
+    if (waitCount*waitTime % oneMinute) {
+      printf("Waiting for threads: total seconds=%ld, flushing stdout buffer.\n", waitCount*waitTime);
+      fflush(stdout); // Change to stream buffer if you want to flush files.
+    }
 
     // PTHREAD_MAX_NAMELEN_NP, pthread_setname_np()
 
@@ -1283,7 +1302,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
                   strerror(errno), threadIndex);
           push_front(errorQueue, threadIndex);
         } else {
-          printf("Thread %ld complete.\n", threadIndex);
+          printf("Thread %ld complete. Wait queue is %ld\n", threadIndex, inProgressQueue.size());
           push_back(completedQueue, threadIndex);
         }
         inProgressSize--;
@@ -1300,9 +1319,9 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   // fclose(fileContext);
 
   // Waits for threads to complete
-  for (size_t i = 0; i < testSize; i++) {
-    fclose(threadVector->threadContextVectorMeta[threadIndex].saveFileContext);
-    printFullPath(threadVector->threadContextVectorMeta[threadIndex].saveFilename);
+  for (size_t threadIndexLocal = 0; threadIndexLocal < testSize; threadIndexLocal++) {
+    fclose(threadVector->threadContextVectorMeta[threadIndexLocal].saveFileContext);
+    printFullPath(threadVector->threadContextVectorMeta[threadIndexLocal].saveFilename);
   }
 
   delete[] threadContext;
@@ -1437,8 +1456,9 @@ int32_t printFullPath(const char *partialPath) {
   if (realpath(partialPath, fullPath) == 0) {
     rc = -1;
     printf("Path Error, %s\n", partialPath);
+    asserterror();
   } else {
-    printf("Path, %s, %s \n", partialPath, fullPath);
+    printf("Path: PartialPath=%s, FullPath=%s\n", partialPath, fullPath);
   }
 #endif // (defined(_WIN32) | defined(_WIN64))
   return rc;
@@ -1722,7 +1742,7 @@ Type pop_front(std::vector<Type> &v) {
     v.erase(v.begin());
   } else {
     printf("pop_front use warning is empty\n");
-    memset(&dValue, 0, sizeof(Type));
+    memset(&dValue, UINT_MAX, sizeof(Type));
   }
   return dValue;
 }
