@@ -66,6 +66,8 @@ extern "C++" {
 
 #define OPERANDS_2_IN 2
 #define RESULTANTS_1_OUT 1
+#define ENABLE_BASIC_C_ALLOC 0
+
 /* Random Method Selection
  * 1=RAND based random number generator.
  * 2=Exploit the Central Limit Theorem (law of large numbers) and add up several uniformly-distributed random numbers.
@@ -73,11 +75,6 @@ extern "C++" {
  * 4=Use a method discussed in Knuth and due originally to Marsaglia.
 */
 #define RANDOM_METHOD 4 // Random Method to select
-
-// @todo remove and modularize
-// volatile size_t DATASET_SIZE = 4294967291; // 100000007;
-// const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
-// FILE *writingFileContext = (FILE *) calloc(1, sizeof(FILE));
 
 /*======================================================================================================================
  * Data structures
@@ -94,6 +91,20 @@ typedef enum fileState_e {
   fs_IsNotExecutable_vet = (1 << 8)
 } fileState_et;
 
+typedef union dynamicCompact {
+  int8_t int8_data;
+  uint8_t uint8_data;
+  int16_t int16_data;
+  uint16_t uint16_data;
+  int32_t int32_data;
+  uint32_t uint32_data;
+  int64_t int64_data;
+  uint64_t uint64_data;
+  float float_data;
+  double double_data;
+  long double longdouble_data;
+} dynamicCompact_t;
+
 typedef struct threadContextMeta {
   size_t loopSetSize;
   uint16_t threadTag;
@@ -101,13 +112,43 @@ typedef struct threadContextMeta {
   char *saveFilename;
   FILE *saveFileContext;
   char *datatypeIDName;
-  uintptr_t *operandsMeta;
-  uintptr_t *resultantsMeta;
+  dynamicCompact_t operandsMeta[OPERANDS_2_IN];
+  dynamicCompact_t resultantsMeta;
   char *messages;
+  threadContextMeta (){
+    this->loopSetSize=0;
+    this->threadTag=0;
+    this->isExecuting=0;
+    this->saveFilename=NULL;
+    this->saveFileContext=NULL;
+    this->datatypeIDName = NULL;
+    // this->operandsMeta = NULL;
+    // this->resultantsMeta = NULL;
+    this->messages = NULL;
+  }
 } threadContextMeta_t;
+
+threadContextMeta_t * newContextMeta(size_t size){
+  return new threadContextMeta_t[size];
+}
+
+
+typedef struct threadContextMetaArray {
+private:
+  std::vector<threadContextMeta_t> data;
+public:
+  threadContextMetaArray(size_t size){
+    std::vector<threadContextMeta_t> NuData;
+    this->data = NuData;
+  }
+  threadContextMeta_t& operator [] (size_t size) {
+    return data[size];
+  }
+} threadContextMetaArray_t;
 
 typedef struct threadContextArray {
   std::vector<threadContextMeta_t> threadContextVectorMeta;
+  size_t size;
 } threadContextArray_t;
 
 // function pointers for pthreads_create
@@ -133,6 +174,9 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]);
 #endif // LIBRARY_MODE
 
 // Helper functions.
+template<typename Type>
+bool safeAlloc(Type*& address, size_t size);
+
 inline void errorAtLine(void);
 
 inline void errorAtLineThread(size_t threadIndex);
@@ -243,10 +287,10 @@ void *my_test(void *args);
 /*======================================================================================================================
  * Pthread generic struct definitions and prototypes for usage in arithmetic
  * ===================================================================================================================*/
-bool threadContextMeta_init(threadContextMeta_t *threadContextData);
+bool threadContextMeta_init(threadContextMeta_t*& threadContextData);
 
 template<typename Type>
-bool threadContextMeta_set(threadContextMeta_t *threadContextData,
+bool threadContextMeta_set(threadContextMeta_t*& threadContextData,
                            size_t loopSetSize,
                            uint16_t threadTag,
                            uint8_t isExecuting,
@@ -259,11 +303,11 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
                            char messages[CHAR_BUFFER_SIZE],
                            const std::string fileHeader);
 
-bool threadContextArray_init(threadContextArray_t *threadContextArrayData,
+bool threadContextArray_init(threadContextArray_t*& threadContextArrayData,
                              size_t reserveSize);
 
 template<typename Type>
-bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector,
+bool testTypes_Template_Pthread_init(threadContextArray_t*& threadVector,
                                      size_t indexThread,
                                      size_t dataSetSize);
 
@@ -711,38 +755,48 @@ void testTypes_Template_Focused(void) {
 *****************************************************************************/
 // @todo
 template<typename Type>
-bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector, size_t indexThread, size_t dataSetSize) {
+bool testTypes_Template_Pthread_init(threadContextArray_t*& threadVector, size_t indexThread, size_t dataSetSize) {
   // @todo fixme
   const std::string fileHeader = "Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R";
-  const char fileDirectory[] = "data";
+#if (defined(__WIN64__) && defined(__WIN64__))
+  const char fileDirectory[] = "\\data\\";
+#else // !(defined(__WIN64__) && defined(__WIN64__))
+  const char fileDirectory[] = "/data/";
+#endif // (defined(__WIN64__) && defined(__WIN64__))
   const char fileNamePrefix[] = "cpuBenchmarkPthreads_";
   const char fileExtension[] = "cvs";// self generation file name.
-  char *directoryTree = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
-  char *fileNameAbsolute = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
-  char *typeNameBuffer = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
-  char *messages = (char *) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
-  FILE *fileContext;
-  Type *operandsMeta = (Type *) malloc(sizeof(Type) * OPERANDS_2_IN);
-  Type *resultantsMeta = (Type *) malloc(sizeof(Type) * RESULTANTS_1_OUT);
-  bool isValid = true;
+  char *directoryTree = NULL;
+  char *fileNameAbsolute = NULL;
+  char *typeNameBuffer = NULL;
+  char *messages = NULL;
+  Type operandsMeta[OPERANDS_2_IN];
+  Type resultantsMeta;
+  threadContextMeta_t *threadItem = NULL;
+  bool isValid;
+
+  safeAlloc<char>(directoryTree, CHAR_BUFFER_SIZE);
+  safeAlloc<char>(fileNameAbsolute, CHAR_BUFFER_SIZE);
+  safeAlloc<char>(typeNameBuffer, CHAR_BUFFER_SIZE);
+  safeAlloc<char>(messages, CHAR_BUFFER_SIZE);
+  // safeAlloc<dynamicCompact_t>(operandsMeta, OPERANDS_2_IN);
+  // safeAlloc<dynamicCompact_t>(resultantsMeta, RESULTANTS_1_OUT);
 
   // Move up one file directory
-  isValid = isValid && fileUpCurrentDirectory(directoryTree);
-  isValid = isValid && (directoryTree != NULL);
-  isValid = isValid && (fileNameAbsolute != NULL);
-  isValid = isValid && (typeNameBuffer != NULL);
-  isValid = isValid && (messages != NULL);
+  isValid = fileUpCurrentDirectory(directoryTree);
 
-  threadContextMeta_t *threadItem = &(threadVector->threadContextVectorMeta[indexThread]);
+  threadItem = &(threadVector->threadContextVectorMeta[indexThread]);
 
-  fileContext = (FILE *) malloc(sizeof(FILE));
-  operandsMeta[0] = gauss_rand<Type>(RANDOM_METHOD);
-  operandsMeta[1] = gauss_rand<Type>(RANDOM_METHOD);
+  do {
+    operandsMeta[0] = gauss_rand<Type>(RANDOM_METHOD);
+  } while (0 == operandsMeta[0]);
+  do {
+    operandsMeta[1] = gauss_rand<Type>(RANDOM_METHOD);
+  } while (0 == operandsMeta[1]);
   setCharArray(messages);
   typelessStringName(operandsMeta[0], typeNameBuffer, false);
   isValid = isValid && threadContextMeta_init(threadItem);
-  snprintf(fileNameAbsolute, CHAR_BUFFER_SIZE, "%s%s%s_thread%ld.%s",
-           fileDirectory, fileNamePrefix, typeNameBuffer, indexThread, fileExtension);
+  snprintf(fileNameAbsolute, CHAR_BUFFER_SIZE, "%s%s%s%s_thread-%ld_meta.%s",
+           directoryTree, fileDirectory, fileNamePrefix, typeNameBuffer, indexThread, fileExtension);
 
   threadContextMeta_set<Type>(threadItem,
                               dataSetSize,
@@ -751,7 +805,7 @@ bool testTypes_Template_Pthread_init(threadContextArray_t *threadVector, size_t 
                               fileNameAbsolute,
                               operandsMeta,
                               OPERANDS_2_IN,
-                              resultantsMeta,
+                              &resultantsMeta,
                               RESULTANTS_1_OUT,
                               messages,
                               fileHeader.c_str());
@@ -766,10 +820,11 @@ void *testTypes_Template_Pthread(void *inArgs) {
   void *danglePtr = NULL;
   threadContextMeta_t *threadInfo = (threadContextMeta_t *) inArgs;
   // @todo fixme
-  char* inOperandTypeName = (char*) malloc(sizeof(char)*CHAR_BUFFER_SIZE);
+  char *inOperandTypeName = NULL;
+  threadInfo->isExecuting = true;
+  safeAlloc<char>(inOperandTypeName, CHAR_BUFFER_SIZE);
   size_t inOperandSize = sizeof(typeid(threadInfo->operandsMeta[0]).name());
   strncpy(inOperandTypeName, typeid(threadInfo->operandsMeta[0]).name(), inOperandSize);
-
   const char *uint8_Name = typeid(uint8_t).name();
   const char *int8_Name = typeid(int8_t).name();
   const char *uint16_Name = typeid(uint16_t).name();
@@ -793,62 +848,84 @@ void *testTypes_Template_Pthread(void *inArgs) {
   bool match_double_Name = strcmp(inOperandTypeName, double_Name);
   bool match_long_double_Name = strcmp(inOperandTypeName, long_double_Name);
   if (match_int8_Name) {
-    testTypes_Template_typeless<int8_t>(threadInfo->operandsMeta[0],
-                                      threadInfo->operandsMeta[1],
-                                      threadInfo->saveFileContext,
-                                      threadInfo->loopSetSize);
+    int8_t lhs = threadInfo->operandsMeta[0].int8_data;
+    int8_t rhs = threadInfo->operandsMeta[1].int8_data;
+    testTypes_Template_typeless<int8_t>(lhs,
+                                        rhs,
+                                        threadInfo->saveFileContext,
+                                        threadInfo->loopSetSize);
   } else if (match_uint8_Name) {
-    testTypes_Template_typeless<uint8_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    uint8_t lhs = threadInfo->operandsMeta[0].uint8_data;
+    uint8_t rhs = threadInfo->operandsMeta[1].uint8_data;
+    testTypes_Template_typeless<uint8_t>(lhs,
+                                         rhs,
+                                         threadInfo->saveFileContext,
+                                         threadInfo->loopSetSize);
   } else if (match_int16_Name) {
-    testTypes_Template_typeless<int16_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    int16_t lhs = threadInfo->operandsMeta[0].int16_data;
+    int16_t rhs = threadInfo->operandsMeta[1].int16_data;
+    testTypes_Template_typeless<int16_t>(lhs,
+                                         rhs,
+                                         threadInfo->saveFileContext,
+                                         threadInfo->loopSetSize);
   } else if (match_uint16_Name) {
-    testTypes_Template_typeless<uint16_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    uint16_t lhs = threadInfo->operandsMeta[0].uint16_data;
+    uint16_t rhs = threadInfo->operandsMeta[1].uint16_data;
+    testTypes_Template_typeless<uint16_t>(lhs,
+                                          rhs,
+                                          threadInfo->saveFileContext,
+                                          threadInfo->loopSetSize);
   } else if (match_int32_Name) {
-    testTypes_Template_typeless<int32_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    int32_t lhs = threadInfo->operandsMeta[0].int32_data;
+    int32_t rhs = threadInfo->operandsMeta[1].int32_data;
+    testTypes_Template_typeless<int32_t>(lhs,
+                                         rhs,
+                                         threadInfo->saveFileContext,
+                                         threadInfo->loopSetSize);
   } else if (match_uint32_Name) {
-    testTypes_Template_typeless<uint32_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    uint32_t lhs = threadInfo->operandsMeta[0].int32_data;
+    uint32_t rhs = threadInfo->operandsMeta[1].int32_data;
+    testTypes_Template_typeless<uint32_t>(lhs,
+                                          rhs,
+                                          threadInfo->saveFileContext,
+                                          threadInfo->loopSetSize);
   } else if (match_int64_Name) {
-    testTypes_Template_typeless<int64_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    int64_t lhs = threadInfo->operandsMeta[0].int64_data;
+    int64_t rhs = threadInfo->operandsMeta[1].int64_data;
+    testTypes_Template_typeless<int64_t>(lhs,
+                                         rhs,
+                                         threadInfo->saveFileContext,
+                                         threadInfo->loopSetSize);
   } else if (match_uint64_Name) {
-    testTypes_Template_typeless<uint64_t>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    uint64_t lhs = threadInfo->operandsMeta[0].uint64_data;
+    uint64_t rhs = threadInfo->operandsMeta[1].uint64_data;
+    testTypes_Template_typeless<uint64_t>(lhs,
+                                          rhs,
+                                          threadInfo->saveFileContext,
+                                          threadInfo->loopSetSize);
   } else if (match_float_Name) {
-    testTypes_Template_typeless<float>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    float lhs = threadInfo->operandsMeta[0].float_data;
+    float rhs = threadInfo->operandsMeta[1].float_data;
+    testTypes_Template_typeless<float>(lhs,
+                                       rhs,
+                                       threadInfo->saveFileContext,
+                                       threadInfo->loopSetSize);
   } else if (match_double_Name) {
-    testTypes_Template_typeless<double>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
+    double lhs = threadInfo->operandsMeta[0].double_data;
+    double rhs = threadInfo->operandsMeta[1].double_data;
+    testTypes_Template_typeless<double>(lhs,
+                                        rhs,
                                         threadInfo->saveFileContext,
                                         threadInfo->loopSetSize);
   } else if (match_long_double_Name) {
-    testTypes_Template_typeless<long double>(threadInfo->operandsMeta[0],
-                                        threadInfo->operandsMeta[1],
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
+    long double lhs = threadInfo->operandsMeta[0].longdouble_data;
+    long double rhs = threadInfo->operandsMeta[1].longdouble_data;
+    testTypes_Template_typeless<long double>(lhs,
+                                             rhs,
+                                             threadInfo->saveFileContext,
+                                             threadInfo->loopSetSize);
   }
-  danglePtr = (void*)threadInfo;
+  danglePtr = (void *) threadInfo;
   return danglePtr;
 }
 
@@ -856,40 +933,98 @@ void *testTypes_Template_Pthread(void *inArgs) {
 *
 * @return
 *****************************************************************************/
-bool threadContextMeta_init(threadContextMeta_t *threadContextData) {
+bool threadContextMeta_init(threadContextMeta_t*& threadContextData) {
   bool isAllocated = false;
+  bool isFilled = false;
+  bool isValid;
   if (NULL == threadContextData) {
-    threadContextData = (threadContextMeta_t *) malloc(sizeof(threadContextMeta_t));
-    if (NULL != threadContextData) {
+    safeAlloc<threadContextMeta_t>(threadContextData, 1);
+  }
+  if (NULL != threadContextData) {
+      isAllocated = true;
       threadContextData->loopSetSize = 0;
       threadContextData->threadTag = 0;
       threadContextData->isExecuting = 0;
       threadContextData->saveFilename = NULL;
       threadContextData->saveFileContext = NULL;
       threadContextData->datatypeIDName = NULL;
-      threadContextData->operandsMeta = NULL;
-      threadContextData->resultantsMeta = NULL;
+      // threadContextData->operandsMeta = NULL;
+      // threadContextData->resultantsMeta = NULL;
       threadContextData->messages = NULL;
-      isAllocated = true;
-    }
+      isFilled = true;
   }
-  return isAllocated;
+  isValid = isAllocated && isFilled;
+  return isValid;
 }
 
 /******************************************************************************
 *
 * @return
 *****************************************************************************/
-bool threadContextArray_init(threadContextArray_t *threadContextArrayData,
+bool threadContextArray_init(threadContextArray_t*& threadContextArrayData,
                              size_t reserveSize) {
-  bool isAllocated = false;
+#if DISABLED
+  bool isLevel_1_Allocated = false;
+  bool isLevel_2_Allocated = false;
+  bool isLevel_3_Allocated = false;
   if (NULL == threadContextArrayData) {
-    threadContextArrayData = (threadContextArray_t *) malloc(sizeof(threadContextArray_t));
-    if (reserveSize > threadContextArrayData->threadContextVectorMeta.capacity()) {
-      threadContextArrayData->threadContextVectorMeta.reserve(reserveSize);
+    safeAlloc<threadContextArray_t>(threadContextArrayData, 1);
+  }
+  if (NULL != threadContextArrayData){
+    isLevel_1_Allocated = true;
+  }
+
+  if (NULL == threadContextArrayData->threadContextVectorMeta){
+    safeAlloc(threadContextArrayData->threadContextVectorMeta, reserveSize);
+  }
+  if (NULL != threadContextArrayData->threadContextVectorMeta) {
+    isLevel_2_Allocated = true;
+  }
+
+  threadContextArrayData->size = reserveSize;
+
+  if (isLevel_1_Allocated && isLevel_2_Allocated) {
+    for (size_t i = 0; i < reserveSize; i++){
+      threadContextMeta_t *threadContextPtr = &threadContextArrayData->threadContextVectorMeta[i];
+      if (0==i){
+        isLevel_3_Allocated =  threadContextMeta_init(threadContextPtr);
+      }
+      else {
+        isLevel_3_Allocated = isLevel_3_Allocated && threadContextMeta_init(threadContextPtr);
+      }
     }
   }
-  return isAllocated;
+ return isLevel_1_Allocated  && isLevel_2_Allocated && isLevel_3_Allocated;
+#endif // DISABLED
+  bool isLevel_1_Allocated = false;
+  bool isLevel_2_Allocated = false;
+  bool isLevel_3_Allocated = false;
+  if (NULL == threadContextArrayData) {
+    safeAlloc<threadContextArray_t>(threadContextArrayData, 1);
+  }
+  if (NULL != threadContextArrayData){
+    isLevel_1_Allocated = true;
+  }
+
+  if (threadContextArrayData->threadContextVectorMeta.capacity() < reserveSize){
+    threadContextArrayData->threadContextVectorMeta.reserve(reserveSize);
+  }
+  isLevel_2_Allocated = true;
+
+  threadContextArrayData->size = reserveSize;
+
+  if (isLevel_1_Allocated && isLevel_2_Allocated) {
+    for (size_t i = 0; i < reserveSize; i++){
+      threadContextMeta_t *threadContextPtr = &threadContextArrayData->threadContextVectorMeta[i];
+      if (0==i){
+        isLevel_3_Allocated =  threadContextMeta_init(threadContextPtr);
+      }
+      else {
+        isLevel_3_Allocated = isLevel_3_Allocated && threadContextMeta_init(threadContextPtr);
+      }
+    }
+  }
+  return isLevel_1_Allocated  && isLevel_2_Allocated && isLevel_3_Allocated;
 }
 
 /******************************************************************************
@@ -918,7 +1053,8 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     threadContextData->isExecuting = isExecuting;
 
     if (NULL == threadContextData->saveFilename) {
-      threadContextData->saveFilename = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      threadContextData->saveFilename = NULL;
+      safeAlloc<char>(threadContextData->saveFilename, CHAR_BUFFER_SIZE);
     }
     if (threadContextData->saveFilename != NULL) {
       setCharArray(threadContextData->saveFilename);
@@ -937,7 +1073,7 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
 
     // Construct string array
     if (NULL == threadContextData->datatypeIDName) {
-      threadContextData->datatypeIDName = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      safeAlloc<char>(threadContextData->datatypeIDName, CHAR_BUFFER_SIZE);
     }
     setCharArray(threadContextData->datatypeIDName);
     // Extract name from type
@@ -945,11 +1081,17 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     strncpy(threadContextData->datatypeIDName, typeid(tmp).name(), dataTypeSize);
 
     // Copy over meta data for operands and resultants
-    memcpy(threadContextData->operandsMeta, operandsMeta, operandsMetaSize);
-    memcpy(threadContextData->resultantsMeta, resultantsMeta, resultantsMetaSize);
+    //if (NULL == threadContextData->operandsMeta){
+    //  safeAlloc<Type>((threadContextData->operandsMeta), operandsMetaSize);
+    //}
+    // memcpy(threadContextData->operandsMeta, operandsMeta, sizeof(Type) * operandsMetaSize);
+    //if (NULL == threadContextData->resultantsMeta){
+    //  safeAlloc((threadContextData->resultantsMeta), resultantsMetaSize);
+    //}
+    //memcpy(threadContextData->resultantsMeta, resultantsMeta, sizeof(Type) * resultantsMetaSize);
 
     if (NULL == threadContextData->messages) {
-      threadContextData->messages = (char*) malloc(sizeof(char) * CHAR_BUFFER_SIZE);
+      safeAlloc<char>(threadContextData->messages, CHAR_BUFFER_SIZE);
     }
     setCharArray(threadContextData->messages);
     strncpy(threadContextData->messages, messages, CHAR_BUFFER_SIZE);
@@ -989,10 +1131,10 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   size_t notStartedSize;
   size_t inProgressSize;
   func_ptr myTypelessTestFuncs;
-  threadContextArray_t threadVector;
-  threadContextMeta_t *threadContextData;
-  pthread_t *threadContext;
-  size_t *threadID;
+  threadContextArray_t *threadVector = NULL;
+  threadContextMeta_t* threadContextData = NULL;
+  pthread_t* threadContext = NULL;
+  size_t *threadID = NULL;
 
   activeThreadCount = 0;
   // Function pointer list
@@ -1014,24 +1156,24 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   };
 
   myTypelessTestFuncs = testTypes_Template_Pthread;
-  threadContextArray_init(&threadVector, testSize);
-  testTypes_Template_Pthread_init<int8_t>(&threadVector, 0, dataSetSize);
-  testTypes_Template_Pthread_init<uint8_t>(&threadVector, 1, dataSetSize);
-  testTypes_Template_Pthread_init<int16_t>(&threadVector, 2, dataSetSize);
-  testTypes_Template_Pthread_init<uint16_t>(&threadVector, 3, dataSetSize);
-  testTypes_Template_Pthread_init<int32_t>(&threadVector, 4, dataSetSize);
-  testTypes_Template_Pthread_init<uint32_t>(&threadVector, 5, dataSetSize);
-  testTypes_Template_Pthread_init<int64_t>(&threadVector, 6, dataSetSize);
-  testTypes_Template_Pthread_init<uint64_t>(&threadVector, 7, dataSetSize);
-  testTypes_Template_Pthread_init<float>(&threadVector, 8, dataSetSize);
-  testTypes_Template_Pthread_init<double>(&threadVector, 9, dataSetSize);
-  testTypes_Template_Pthread_init<long double>(&threadVector, 10, dataSetSize);
+  threadContextArray_init(threadVector, testSize);
+  testTypes_Template_Pthread_init<int8_t>(threadVector, 0, dataSetSize);
+  testTypes_Template_Pthread_init<uint8_t>(threadVector, 1, dataSetSize);
+  testTypes_Template_Pthread_init<int16_t>(threadVector, 2, dataSetSize);
+  testTypes_Template_Pthread_init<uint16_t>(threadVector, 3, dataSetSize);
+  testTypes_Template_Pthread_init<int32_t>(threadVector, 4, dataSetSize);
+  testTypes_Template_Pthread_init<uint32_t>(threadVector, 5, dataSetSize);
+  testTypes_Template_Pthread_init<int64_t>(threadVector, 6, dataSetSize);
+  testTypes_Template_Pthread_init<uint64_t>(threadVector, 7, dataSetSize);
+  testTypes_Template_Pthread_init<float>(threadVector, 8, dataSetSize);
+  testTypes_Template_Pthread_init<double>(threadVector, 9, dataSetSize);
+  testTypes_Template_Pthread_init<long double>(threadVector, 10, dataSetSize);
 
-  threadContext = (pthread_t*) malloc(sizeof(pthread_t)*testSize);
-  threadID = (size_t*) malloc(sizeof(size_t)*testSize);
+  safeAlloc<pthread_t>(threadContext,testSize);
+  safeAlloc<size_t>(threadID, testSize);
   // Prepare queue with function pointer index
-  for (size_t i = 0; i < threadVector.threadContextVectorMeta.size(); i++) {
-    threadID[i] = threadVector.threadContextVectorMeta[i].threadTag;
+  for (size_t i = 0; i < threadVector->size; i++) {
+    threadID[i] = threadVector->threadContextVectorMeta[i].threadTag;
     push_back(notStartedQueue, threadID[i]);
   }
 
@@ -1047,8 +1189,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
         // Passing function pointer to arg of pthread_create function
         threadStatus = pthread_create(&threadContext[threadIndex],
                                       NULL,
-                                      myTestFuncs[threadIndex],
-                                      &threadVector.threadContextVectorMeta[threadIndex]);
+                                      testTypes_Template_Pthread, // myTestFuncs[threadIndex],
+                                      &threadVector->threadContextVectorMeta[threadIndex]);
         if (0 == threadStatus) {
           push_back(inProgressQueue, threadIndex);
           activeThreadCount++;
@@ -1100,8 +1242,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 
   // Waits for threads to complete
   for (size_t i = 0; i < testSize; i++) {
-    fclose(threadVector.threadContextVectorMeta[threadIndex].saveFileContext);
-    printFullPath(threadVector.threadContextVectorMeta[threadIndex].saveFilename);
+    fclose(threadVector->threadContextVectorMeta[threadIndex].saveFileContext);
+    printFullPath(threadVector->threadContextVectorMeta[threadIndex].saveFilename);
   }
 
   delete[] threadContext;
@@ -1132,6 +1274,36 @@ inline void errorAtLineThread(size_t threadIndex) {
           strerror(errno),
           threadIndex);
   return;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+template<typename Type>
+bool safeAlloc(Type*& address, size_t size){
+  bool isValid = false;
+
+# if !ENABLE_BASIC_C_ALLOC
+  if (size <= 1){
+    address = new Type;
+  }
+  else {
+    // Type addressArray[size];
+    // size_t bytesToCopy = sizeof(Type)*size;
+    // memcpy(address, addressArray, bytesToCopy);
+    address = new Type[size];
+  }
+  isValid = (NULL != address);
+#else // ENABLE_BASIC_C_ALLOC
+  address = malloc(sizeof(Type)*size);
+  if (NULL != address) {
+    isValid = true;
+    memset(address, sizeof(Type) * size);
+  }
+#endif // ENABLE_BASIC_C_ALLOC
+  assertm(isValid==true, "Invalid Allocation...");
+  return isValid;
 }
 
 /******************************************************************************
@@ -1193,7 +1365,8 @@ void printArgs(int argc, char *argv[]) {
 *****************************************************************************/
 int32_t printFullPath(const char *partialPath) {
   int32_t rc = 0;
-  char *fullPath = (char *) calloc(PATH_MAX, sizeof(char));
+  char *fullPath = NULL;
+  safeAlloc<char>(fullPath, PATH_MAX);
 #if (defined(_WIN32) | defined(_WIN64))
   if (_fullpath(fullPath, partialPath, PATH_MAX) != NULL) {
     printf("Path, %s, %s\n", partialPath, fullPath);
