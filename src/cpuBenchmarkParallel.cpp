@@ -57,6 +57,7 @@ extern "C++" {
 #include <unistd.h>
 #endif // defined(_WIN32) | defined(_WIN64)
 
+#define ENABLE_DEBUG 0
 #define CHAR_BUFFER_SIZE 1024
 #define PATH_MAX 4096
 #define CHAR_PTHREAD_NAMELEN_MAX 16
@@ -278,7 +279,7 @@ template<class classType>
 classType gauss_rand(int select);
 
 template<class classType>
-classType typelessValid(int select);
+classType typelessValid(int select, bool debug);
 
 template<class classType>
 TypeSystemEnumeration_t typelessClassify(classType inType);
@@ -519,7 +520,8 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
   TypeSystemEnumeration_t mtB = typelessClassify<classType>(inB);
   TypeSystemEnumeration_t mtR = typelessClassify<classType>(outR);
   char printBuffer[CHAR_BUFFER_SIZE];
-  bool areAllSameType = (mtA == mtB && mtB == mtR);
+  bool areAllSameType = ((mtA == mtB) && (mtB == mtR));
+  setCharArray(printBuffer);
 
   if (areAllSameType) {
     /* IEEE-754 Precision of the representation for printing values.
@@ -583,6 +585,7 @@ classType typelessPrint(classType inA, classType inB, classType outR, const char
         snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, %.35Lf, %.35Lf, %.35Lf",
                  operationName, timeDelta, loopIterations,
                  (long double) inA, (long double) inB, (long double) outR);
+        break;
       default:
         // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
         snprintf(printBuffer, CHAR_BUFFER_SIZE,
@@ -801,10 +804,10 @@ bool testTypes_Template_Pthread_init(threadContextArray_t*& threadVector, size_t
   threadItem = &(threadVector->threadContextVectorMeta[indexThread]);
 
   do {
-    operandsMeta[0] = typelessValid<Type>(RANDOM_METHOD);
+    operandsMeta[0] = typelessValid<Type>(RANDOM_METHOD, ENABLE_DEBUG);
   } while (0 == operandsMeta[0]);
   do {
-    operandsMeta[1] = typelessValid<Type>(RANDOM_METHOD);
+    operandsMeta[1] = typelessValid<Type>(RANDOM_METHOD, ENABLE_DEBUG);
   } while (0 == operandsMeta[1]);
   setCharArray(messages);
   typelessStringName(operandsMeta[0], typeNameBuffer, false);
@@ -907,6 +910,7 @@ void *testTypes_Template_Pthread(void *inArgs) {
                                                threadInfo->operandsMeta[1].longdouble_data,
                                                threadInfo->saveFileContext,
                                                threadInfo->loopSetSize);
+      break;
     default:
       asserterrorthread(threadInfo->threadTag);
       break;
@@ -1133,10 +1137,12 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
         threadContextData->operandsMeta[0].longdouble_data = operandsMeta[0];
         threadContextData->operandsMeta[1].longdouble_data = operandsMeta[1];
         threadContextData->resultantsMeta.longdouble_data = resultantsMeta;
+        break;
       default:
         bool isValid_Numerical = false;
         printf("Operation=unknownType, A=unknown\n");
-        assertm(!isValid_Numerical, "Invalid type passing");
+        errorAtLineThread(threadContextData->threadTag);
+        assertm(!isValid_Numerical, "Invalid type passing\n");
         break;
     }
 
@@ -1876,13 +1882,11 @@ classType gauss_rand(int select) {
 * @return
 *****************************************************************************/
 template<class classType>
-classType typelessValid(int select) {
+classType typelessValid(int select, bool debug) {
   // Ensure random values are valid integers or floats
   classType inType = (classType) 0;
   bool isValid_Numerical = false;
-  char inATypeName[CHAR_BUFFER_SIZE];
-  size_t inASize = sizeof(typeid(inType).name());
-  strncpy(inATypeName, typeid(inType).name(), inASize);
+  char printBuffer[CHAR_BUFFER_SIZE];
   TypeSystemEnumeration_t mt = typelessClassify<classType>(inType);
   dynamicCompact_t candidateValue;
   do {
@@ -1891,63 +1895,69 @@ classType typelessValid(int select) {
       case tse_int8_e:
         candidateValue.int8_data = (int8_t) inType;
         isValid_Numerical = (candidateValue.int8_data >= INT8_MIN && candidateValue.int8_data <= INT8_MAX);
-        printf("Operation=int8, A=%d\n", candidateValue.int8_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=int8, A=%d\n", candidateValue.int8_data);
         break;
       case tse_uint8_e:
         candidateValue.uint8_data = (uint8_t) inType;
         isValid_Numerical = (candidateValue.uint8_data >= 0 && candidateValue.uint8_data <= UINT8_MAX);
-        printf("Operation=uint8, A=%d\n", candidateValue.uint8_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=uint8, A=%d\n", candidateValue.uint8_data);
         break;
       case tse_int16_e:
         candidateValue.int16_data = (int16_t) inType;
         isValid_Numerical = (candidateValue.int16_data >= INT16_MIN && candidateValue.int16_data <= INT16_MAX);
-        printf("Operation=int16, A=%d\n", candidateValue.int16_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=int16, A=%d\n", candidateValue.int16_data);
         break;
       case tse_uint16_e:
         candidateValue.uint16_data = (uint16_t) inType;
         isValid_Numerical = (candidateValue.uint16_data >= 0 && candidateValue.uint16_data <= UINT16_MAX);
-        printf("Operation=uint16, A=%d\n", candidateValue.uint16_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=uint16, A=%d\n", candidateValue.uint16_data);
         break;
       case tse_int32_e:
         candidateValue.int32_data = (int32_t) inType;
         isValid_Numerical = (candidateValue.int32_data >= INT32_MIN && candidateValue.int32_data <= INT32_MAX);
-        printf("Operation=int32, A=%d\n", candidateValue.int32_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=int32, A=%d\n", candidateValue.int32_data);
         break;
       case tse_uint32_e:
         candidateValue.uint32_data = (uint32_t) inType;
         isValid_Numerical = (candidateValue.uint32_data >= 0 && candidateValue.uint32_data <= UINT32_MAX);
-        printf("Operation=uint32, A=%d\n", candidateValue.uint32_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=uint32, A=%d\n", candidateValue.uint32_data);
         break;
       case tse_int64_e:
         candidateValue.int64_data = (int64_t) inType;
         isValid_Numerical = (candidateValue.int64_data >= INT64_MIN && candidateValue.int64_data <= INT64_MAX);
-        printf("Operation=int64, A=%ld\n", candidateValue.int64_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=int64, A=%ld\n", candidateValue.int64_data);
         break;
       case tse_uint64_e:
         candidateValue.uint64_data = (uint64_t) inType;
         isValid_Numerical = (candidateValue.uint64_data >= 0 && candidateValue.uint64_data <= UINT64_MAX);
-        printf("Operation=uint64, A=%ld\n", candidateValue.uint64_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=uint64, A=%ld\n", candidateValue.uint64_data);
         break;
       case tse_float_e:
         candidateValue.float_data = (float) inType;
         isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.float_data));
-        printf("Operation=float, A=%f\n", candidateValue.float_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=float, A=%f\n", candidateValue.float_data);
         break;
       case tse_double_e:
         candidateValue.double_data = (double) inType;
         isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.double_data));
-        printf("Operation=double, A=%f\n", candidateValue.double_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=double, A=%f\n", candidateValue.double_data);
         break;
       case tse_long_double_e:
         candidateValue.longdouble_data = (long double) inType;
         isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.longdouble_data));
-        printf("Operation=long_double, A=%Lf\n", candidateValue.longdouble_data);
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=long_double, A=%Lf\n", candidateValue.longdouble_data);
+        break;
       default:
         isValid_Numerical = false;
-        printf("Operation=unknownType, A=unknown\n");
-        assertm(!isValid_Numerical, "Invalid type passing");
+        asserterror();
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "Operation=unknownType, A=unknown...\n");
+        assertm(!isValid_Numerical, "Invalid type passing...\n");
+        break;
     }
   } while (!isValid_Numerical);
+  if (debug) {
+    printf("%s", printBuffer);
+  }
   return inType;
 }
 
