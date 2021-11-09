@@ -258,6 +258,9 @@ void fileMakeDirectories(const char absoluteFolderPath[CHAR_BUFFER_SIZE]);
 
 int fileDirectoryExists(const char selectPath[CHAR_BUFFER_SIZE]);
 
+int fileGetDirectory(const char selectPath[CHAR_BUFFER_SIZE],
+                     char foundDirectory[CHAR_BUFFER_SIZE]);
+
 // Template functions.
 template<typename Type>
 void push_front(std::vector<Type> &v, Type val);
@@ -1031,6 +1034,8 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
   Type tmp;
   size_t dataTypeSize;
   bool isAllocated = false;
+  char directoryPath[CHAR_BUFFER_SIZE];
+  setCharArray(directoryPath);
 
   if (NULL != threadContextData) {
     threadContextData->loopSetSize = loopSetSize;
@@ -1050,10 +1055,17 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
       if (fs_Found_vet == fileIsFound(threadContextData->saveFilename)) {
         fileDelete(threadContextData->saveFilename);
       }
+      else {
+        fileGetDirectory(threadContextData->saveFilename, directoryPath);
+        fileMakeDirectories(directoryPath);
+      }
       fileOverwriteNil(threadContextData->saveFilename);
-      fileMakeDirectories(threadContextData->saveFilename);
       fileCreate(threadContextData->saveFilename, (char *) fileHeader.c_str());
       threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "a+");
+      printf("File %s opened in a+ mode\n", threadContextData->saveFilename);
+    }
+    else{
+      asserterror();
     }
 
     // Construct string array
@@ -1194,7 +1206,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
     (&my_test<volatile long double>)
   };
   printf("Cores for Pthread() usage are: %zu\n", coreCount);
-  
+
   myTypelessTestFuncs = testTypes_Template_Pthread;
   threadContextArray_init(threadVector, testSize);
   testTypes_Template_Pthread_init<int8_t>(threadVector, 0, dataSetSize);
@@ -1946,9 +1958,14 @@ classType typelessValid(int select) {
 template<class classType>
 TypeSystemEnumeration_t typelessClassify(classType inType) {
   TypeSystemEnumeration_t detectedType;
-  char inTypeName[CHAR_BUFFER_SIZE];
-  size_t inASize = sizeof(typeid(inType).name());
-  strncpy(inTypeName, typeid(inType).name(), inASize);
+  char * inName;
+  size_t inASize;
+  size_t minSize;
+
+  detectedType = tse_unknown_e;
+  inName = (char*) typeid(inType).name();
+  inASize = strlen(inName);
+  minSize = std::min(inASize, (size_t)CHAR_BUFFER_SIZE);
 
   const char *uint8_Name = typeid(uint8_t).name();
   const char *int8_Name = typeid(int8_t).name();
@@ -1962,17 +1979,28 @@ TypeSystemEnumeration_t typelessClassify(classType inType) {
   const char *double_Name = typeid(double).name();
   const char *long_double_Name = typeid(long double).name();
 
-  bool match_uint8_Name = strcmp(inTypeName, uint8_Name);
-  bool match_int8_Name = strcmp(inTypeName, int8_Name);
-  bool match_uint16_Name = strcmp(inTypeName, uint16_Name);
-  bool match_int16_Name = strcmp(inTypeName, int16_Name);
-  bool match_uint32_Name = strcmp(inTypeName, uint32_Name);
-  bool match_int32_Name = strcmp(inTypeName, int32_Name);
-  bool match_uint64_Name = strcmp(inTypeName, uint64_Name);
-  bool match_int64_Name = strcmp(inTypeName, int64_Name);
-  bool match_float_Name = strcmp(inTypeName, float_Name);
-  bool match_double_Name = strcmp(inTypeName, double_Name);
-  bool match_long_double_Name = strcmp(inTypeName, long_double_Name);
+  minSize = std::min(inASize, (size_t)strlen(uint8_Name));
+  bool match_uint8_Name = (0 == strncmp(inName, uint8_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(int8_Name));
+  bool match_int8_Name = (0 == strncmp(inName, int8_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(uint16_Name));
+  bool match_uint16_Name = (0 == strncmp(inName, uint16_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(int16_Name));
+  bool match_int16_Name = (0 == strncmp(inName, int16_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(uint32_Name));
+  bool match_uint32_Name = (0 == strncmp(inName, uint32_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(int32_Name));
+  bool match_int32_Name = (0 == strncmp(inName, int32_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(uint64_Name));
+  bool match_uint64_Name = (0 == strncmp(inName, uint64_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(int64_Name));
+  bool match_int64_Name = (0 == strncmp(inName, int64_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(float_Name));
+  bool match_float_Name = (0 == strncmp(inName, float_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(double_Name));
+  bool match_double_Name = (0 == strncmp(inName, double_Name, minSize));
+  minSize = std::min(inASize, (size_t)strlen(long_double_Name));
+  bool match_long_double_Name = (0 == strncmp(inName, long_double_Name, minSize));
 
   if (match_int8_Name) {
     detectedType = tse_int8_e;
@@ -2031,6 +2059,7 @@ bool fileCreate(char fileName[CHAR_BUFFER_SIZE], char headerString[CHAR_BUFFER_S
     fprintf(fileContext, "\n");
     fclose(fileContext);
     isCreated = true;
+    printf("File %s has been created.\n", fileName);
   }
   return isCreated;
 }
@@ -2046,6 +2075,7 @@ bool fileOverwriteNil(char fileName[CHAR_BUFFER_SIZE]) {
     fprintf(fileContext, "\n");
     fclose(fileContext);
     isCreated = true;
+    printf("File %s has been overwritten.\n", fileName);
   }
   return isCreated;
 }
@@ -2058,10 +2088,10 @@ fileState_et fileIsFound(const char fileName[CHAR_BUFFER_SIZE]) {
   fileState_et activeFileState = fs_Unknown_vet;
   bool fileStatus = !access(fileName, F_OK);
   if (fileStatus) {
-    printf("The File %s was Found\n", fileName);
+    printf("File %s was Found.\n", fileName);
     activeFileState = fs_Found_vet;
   } else {
-    printf("The File %s not Found\n", fileName);
+    printf("File %s not Found.\n", fileName);
     activeFileState = fs_NotFound_vet;
   }
   return activeFileState;
@@ -2207,8 +2237,14 @@ bool fileGetCurrentWorkingDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
 bool fileMakeDirectory(const char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
   bool isCreated = false;
   errno = 0;
+  if (absoluteFolderPath[0] == '\0') {
+    // fprintf(stderr, "Error in absoluteFolderPath is nil token.\n");
+    // asserterror();
+    return isCreated;
+  }
   int ret = mkdir(absoluteFolderPath, S_IRWXU | S_IRWXG);
   if (ret == -1) {
+    fprintf(stderr, "Error in absoluteFolderPath=%s\n", absoluteFolderPath);
     switch (errno) {
       case EACCES:
         printf("the parent directory does not allow write\n");
@@ -2262,6 +2298,10 @@ void fileMakeDirectories(const char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
   char outPath[CHAR_BUFFER_SIZE];
   char *p;
   size_t len;
+  size_t charIndex;
+  char sampleChar;
+  char sampleBuffer[CHAR_BUFFER_SIZE];
+  setCharArray(sampleBuffer);
 
   strncpy(outPath, absoluteFolderPath, CHAR_BUFFER_SIZE);
   outPath[CHAR_BUFFER_SIZE - 1] = nilToken;
@@ -2271,14 +2311,18 @@ void fileMakeDirectories(const char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
   } else if (pathSeparator == outPath[len - 1]) {
     outPath[len - 1] = nilToken;
   }
+  charIndex = 0;
   for (p = outPath; *p; p++) {
+    sampleChar = *p;
+    sampleBuffer[charIndex] = sampleChar;
     if (pathSeparator == *p) {
-      *p = '\0';
+      *p = nilToken;
       if (access(outPath, F_OK)) {
         fileMakeDirectory(outPath);
       }
       *p = pathSeparator;
     }
+    charIndex++;
   }
   if (access(outPath, F_OK)) {
     /* if path is not terminated with / */
@@ -2314,6 +2358,78 @@ int fileDirectoryExists(const char selectPath[CHAR_BUFFER_SIZE]) {
   } else {
     returnStatus = 0;
   }
+  return returnStatus;
+}
+
+/******************************************************************************
+* Checks to see if a directory exists. Note: This method only checks the
+* existence of the full path AND if path leaf is a dir.
+* @return  >0 if file has path,
+*           0 if dir does not exist OR exists but not a dir,
+*          <0 if an error occurred (errno is also set)
+*****************************************************************************/
+int fileGetDirectory(const char selectPath[CHAR_BUFFER_SIZE],
+                     char foundDirectory[CHAR_BUFFER_SIZE]) {
+#if defined(_WIN32) | defined(_WIN64)
+  const char pathSeparator = '\\';
+#else
+  const char pathSeparator = '/';
+#endif // defined(_WIN32) | defined(_WIN64)
+  const char charNil = '\0';
+  char directoryPath[CHAR_BUFFER_SIZE];
+  bool isCVS;
+  bool isFolder;
+  bool isNotEmpty;
+  bool canHaveFileExtension;
+  size_t len;
+  uint32_t returnStatus;
+
+  returnStatus= -1;
+  setCharArray(directoryPath);
+  setCharArray(foundDirectory);
+  strncpy(directoryPath, selectPath, CHAR_BUFFER_SIZE);
+
+  len = strlen(directoryPath);
+  canHaveFileExtension = (len > 4);
+  isNotEmpty = (len > 1);
+  isFolder = isNotEmpty && (pathSeparator == directoryPath[len - 1]);
+  if (canHaveFileExtension) {
+    // System is build for *.cvs file creation.
+    isCVS = (directoryPath[len - 4] == '.');
+    isCVS = isCVS && (directoryPath[len - 3] == 'c');
+    isCVS = isCVS && (directoryPath[len - 2] == 'v');
+    isCVS = isCVS && (directoryPath[len - 1] == 's');
+    if (isCVS) {
+      returnStatus = 0;
+      for (size_t charIndex = len - 1; charIndex > 0; charIndex--) {
+        if (pathSeparator == directoryPath[charIndex] ) {
+          directoryPath[charIndex] = charNil;
+          returnStatus = 1;
+          break;
+        } else {
+          directoryPath[charIndex] = charNil;
+        }
+      }
+    }
+    else if (isFolder) {
+      // Last char is path separator, so directory.
+      returnStatus = 1;
+    }
+    else if (isNotEmpty) {
+      // Could be directory path, if path separator exists.
+      for (size_t charIndex = len - 1; charIndex > 0; charIndex--) {
+        if (pathSeparator == directoryPath[charIndex]) {
+          isFolder = true;
+          returnStatus = 1;
+          break;
+        }
+      }
+    }
+    else{
+      returnStatus = -1;
+    }
+  }
+  strncpy(foundDirectory, directoryPath, CHAR_BUFFER_SIZE);
   return returnStatus;
 }
 
