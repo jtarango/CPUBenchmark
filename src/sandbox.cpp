@@ -31,6 +31,47 @@ typedef enum TypeSystemEnumeration_e
   tse_long_double_e = 11
 } TypeSystemEnumeration_t;
 
+/* Template
+classType (TypeSystemEnumeration_t mt)
+{
+  switch (mt)
+  {
+    case tse_int8_e:
+
+      break;
+    case tse_uint8_e:
+
+      break;
+    case tse_int16_e:
+
+      break;
+    case tse_uint16_e:
+
+      break;
+    case tse_int32_e:
+
+      break;
+    case tse_uint32_e:
+
+      break;
+    case tse_int64_e:
+
+      break;
+    case tse_uint64_e:
+
+      break;
+    case tse_float_e:
+
+      break;
+    case tse_double_e:
+
+      break;
+    case tse_long_double_e:
+
+      break;
+  }
+*/
+
 template < TypeSystemEnumeration_t T_mt > class TypeSystemClass;
 template < > class TypeSystemClass<tse_int8_e> { public: typedef int8_t type; };
 template < > class TypeSystemClass<tse_uint8_e> { public: typedef uint8_t type; };

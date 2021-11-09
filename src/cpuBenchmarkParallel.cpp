@@ -64,6 +64,26 @@ extern "C++" {
 // Use (void) to silent unused warnings.
 #define assertm(exp, msg) assert(((void)msg, exp))
 
+#define asserterror() fprintf(stderr, "Error in %s at line %d with %s.\n" \
+"PRETTY_FUNCTION=%s\n" \
+"CONTEXT=%s.\n", \
+__FILE__, \
+__LINE__, \
+__func__, \
+__PRETTY_FUNCTION__, \
+strerror(errno))
+
+#define asserterrorthread(tid) fprintf(stderr, "Error in %s at line %d with %s.\n" \
+"PRETTY_FUNCTION=%s\n" \
+"CONTEXT=%s.\n" \
+"Cannot create thread %ld: invalid setting or permission.", \
+__FILE__, \
+__LINE__, \
+__func__, \
+__PRETTY_FUNCTION__, \
+strerror(errno), \
+  (uint64_t)tid) \
+
 #define OPERANDS_2_IN 2
 #define RESULTANTS_1_OUT 1
 #define ENABLE_BASIC_C_ALLOC 0
@@ -91,6 +111,22 @@ typedef enum fileState_e {
   fs_IsNotExecutable_vet = (1 << 8)
 } fileState_et;
 
+typedef enum TypeSystemEnumeration_e
+{
+  tse_int8_e = 1,
+  tse_uint8_e = 2,
+  tse_int16_e = 3,
+  tse_uint16_e = 4,
+  tse_int32_e = 5,
+  tse_uint32_e = 6,
+  tse_int64_e = 7,
+  tse_uint64_e = 8,
+  tse_float_e = 9,
+  tse_double_e = 10,
+  tse_long_double_e = 11,
+  tse_unknown_e = 12
+} TypeSystemEnumeration_t;
+
 typedef union dynamicCompact {
   int8_t int8_data;
   uint8_t uint8_data;
@@ -112,9 +148,11 @@ typedef struct threadContextMeta {
   char *saveFilename;
   FILE *saveFileContext;
   char *datatypeIDName;
+  TypeSystemEnumeration_t typeSystemName;
   dynamicCompact_t operandsMeta[OPERANDS_2_IN];
   dynamicCompact_t resultantsMeta;
   char *messages;
+
   threadContextMeta (){
     this->loopSetSize=0;
     this->threadTag=0;
@@ -128,11 +166,12 @@ typedef struct threadContextMeta {
   }
 } threadContextMeta_t;
 
+// @todo fixme
 threadContextMeta_t * newContextMeta(size_t size){
   return new threadContextMeta_t[size];
 }
 
-
+// @todo fixme
 typedef struct threadContextMetaArray {
 private:
   std::vector<threadContextMeta_t> data;
@@ -238,6 +277,9 @@ classType gauss_rand(int select);
 template<class classType>
 classType typelessValid(int select);
 
+template<class classType>
+TypeSystemEnumeration_t typelessClassify(classType inType);
+
 // Pass pointer-to-template-function as function argument.
 // Arithmetic Call template method on class template parameters.
 // @note typedef template function pointer
@@ -296,7 +338,7 @@ bool threadContextMeta_set(threadContextMeta_t*& threadContextData,
                            uint8_t isExecuting,
                            char saveFilename[CHAR_BUFFER_SIZE],
                            FILE *saveFileContext,
-                           Type *operandsMeta,
+                           Type operandsMeta[OPERANDS_2_IN],
                            size_t operandsMetaSize,
                            Type *resultantsMeta,
                            size_t resultantsMetaSize,
@@ -331,6 +373,9 @@ classType typelessMultiplication(classType u, classType v) {
 
 template<class classType>
 classType typelessDivision(classType u, classType v) {
+  if (u == 0 || v == 0) {
+    return u;
+  }
   return u / v;
 }
 
@@ -406,64 +451,50 @@ classType performPrint(classType inA, classType inB, classType outR, const char 
 // template <class classType, std::enable_if_t<!std::is_arithmetic<classType>::value>* = nullptr>
 template<class classType>
 void typelessStringName(classType inA, char printBuffer[CHAR_BUFFER_SIZE], bool printName) {
-  char inATypeName[CHAR_BUFFER_SIZE];
-  size_t inASize = sizeof(typeid(inA).name());
-  strncpy(inATypeName, typeid(inA).name(), inASize);
-
-  const char *uint8_Name = typeid(uint8_t).name();
-  const char *int8_Name = typeid(int8_t).name();
-  const char *uint16_Name = typeid(uint16_t).name();
-  const char *int16_Name = typeid(int16_t).name();
-  const char *uint32_Name = typeid(uint32_t).name();
-  const char *int32_Name = typeid(int32_t).name();
-  const char *uint64_Name = typeid(uint64_t).name();
-  const char *int64_Name = typeid(int64_t).name();
-  const char *float_Name = typeid(float).name();
-  const char *double_Name = typeid(double).name();
-  const char *long_double_Name = typeid(long double).name();
-
-  bool match_uint8_Name = strcmp(inATypeName, uint8_Name);
-  bool match_int8_Name = strcmp(inATypeName, int8_Name);
-  bool match_uint16_Name = strcmp(inATypeName, uint16_Name);
-  bool match_int16_Name = strcmp(inATypeName, int16_Name);
-  bool match_uint32_Name = strcmp(inATypeName, uint32_Name);
-  bool match_int32_Name = strcmp(inATypeName, int32_Name);
-  bool match_uint64_Name = strcmp(inATypeName, uint64_Name);
-  bool match_int64_Name = strcmp(inATypeName, int64_Name);
-  bool match_float_Name = strcmp(inATypeName, float_Name);
-  bool match_double_Name = strcmp(inATypeName, double_Name);
-  bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
+  TypeSystemEnumeration_t mt = typelessClassify<classType>(inA);
   /* IEEE-754 Precision of the representation for printing values.
    * A 32-bit, single-precision IEEE754 number has 24 mantissa bits, which gives about 23+1 * log10(2) = 7.22 ~ 8 digits of precision.
    * A 64-bit, double precision IEEE754 number has 53 mantissa bits, which gives about 52+1 * log10(2) = 15.95 ~ 16 digits of precision.
    * A 128-bit, long double precision IEEE754 number has 112 mantissa bits, which gives about 112+1 * log10(2) = 34.01 ~ 35 digits of precision.
    */
   // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
-  if (match_int8_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8");
-  } else if (match_uint8_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8");
-  } else if (match_int16_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16");
-  } else if (match_uint16_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16");
-  } else if (match_int32_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32");
-  } else if (match_uint32_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32");
-  } else if (match_int64_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64");
-  } else if (match_uint64_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64");
-  } else if (match_float_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "float");
-  } else if (match_double_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "double");
-  } else if (match_long_double_Name) {
-    snprintf(printBuffer, CHAR_BUFFER_SIZE, "longdouble");
-  } else {
-    // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
-    snprintf(printBuffer, CHAR_BUFFER_SIZE,
+  switch (mt) {
+    case tse_int8_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8");
+      break;
+    case tse_uint8_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8");
+      break;
+    case tse_int16_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16");
+      break;
+    case tse_uint16_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16");
+      break;
+    case tse_int32_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32");
+      break;
+    case tse_uint32_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32");
+      break;
+    case tse_int64_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64");
+      break;
+    case tse_uint64_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64");
+      break;
+    case tse_float_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "float");
+      break;
+    case tse_double_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "double");
+      break;
+    case tse_long_double_e:
+      snprintf(printBuffer, CHAR_BUFFER_SIZE, "longdouble");
+      break;
+    default:
+      // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
+      snprintf(printBuffer, CHAR_BUFFER_SIZE,
              "Type_Unknown_AtLine_%d", __LINE__);
   }
   if (printName) {
@@ -481,101 +512,81 @@ void typelessStringName(classType inA, char printBuffer[CHAR_BUFFER_SIZE], bool 
 template<class classType>
 classType typelessPrint(classType inA, classType inB, classType outR, const char operationName[CHAR_BUFFER_SIZE],
                         FILE *fileContext, long double timeDelta, size_t loopIterations) {
+  TypeSystemEnumeration_t mtA = typelessClassify<classType>(inA);
+  TypeSystemEnumeration_t mtB = typelessClassify<classType>(inB);
+  TypeSystemEnumeration_t mtR = typelessClassify<classType>(outR);
   char printBuffer[CHAR_BUFFER_SIZE];
-  char inATypeName[CHAR_BUFFER_SIZE];
-  char inBTypeName[CHAR_BUFFER_SIZE];
-  char outRTypeName[CHAR_BUFFER_SIZE];
-  size_t inASize = sizeof(typeid(inA).name());
-  size_t inBSize = sizeof(typeid(inB).name());
-  size_t outRSize = sizeof(typeid(outR).name());
-  strncpy(inATypeName, typeid(inA).name(), inASize);
-  strncpy(inBTypeName, typeid(inB).name(), inBSize);
-  strncpy(outRTypeName, typeid(outR).name(), outRSize);
-  bool matchAB = strcmp(inATypeName, inBTypeName);
-  bool matchAR = strcmp(inATypeName, outRTypeName);
-  bool matchBR = strcmp(inBTypeName, outRTypeName);
-  bool areAllSameType = (matchAB && matchAR && matchBR);
+  bool areAllSameType = (mtA == mtB && mtB == mtR);
 
   if (areAllSameType) {
-    const char *uint8_Name = typeid(uint8_t).name();
-    const char *int8_Name = typeid(int8_t).name();
-    const char *uint16_Name = typeid(uint16_t).name();
-    const char *int16_Name = typeid(int16_t).name();
-    const char *uint32_Name = typeid(uint32_t).name();
-    const char *int32_Name = typeid(int32_t).name();
-    const char *uint64_Name = typeid(uint64_t).name();
-    const char *int64_Name = typeid(int64_t).name();
-    const char *float_Name = typeid(float).name();
-    const char *double_Name = typeid(double).name();
-    const char *long_double_Name = typeid(long double).name();
-
-    bool match_uint8_Name = strcmp(inATypeName, uint8_Name);
-    bool match_int8_Name = strcmp(inATypeName, int8_Name);
-    bool match_uint16_Name = strcmp(inATypeName, uint16_Name);
-    bool match_int16_Name = strcmp(inATypeName, int16_Name);
-    bool match_uint32_Name = strcmp(inATypeName, uint32_Name);
-    bool match_int32_Name = strcmp(inATypeName, int32_Name);
-    bool match_uint64_Name = strcmp(inATypeName, uint64_Name);
-    bool match_int64_Name = strcmp(inATypeName, int64_Name);
-    bool match_float_Name = strcmp(inATypeName, float_Name);
-    bool match_double_Name = strcmp(inATypeName, double_Name);
-    bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
     /* IEEE-754 Precision of the representation for printing values.
      * A 32-bit, single-precision IEEE754 number has 24 mantissa bits, which gives about 23+1 * log10(2) = 7.22 ~ 8 digits of precision.
      * A 64-bit, double precision IEEE754 number has 53 mantissa bits, which gives about 52+1 * log10(2) = 15.95 ~ 16 digits of precision.
      * A 128-bit, long double precision IEEE754 number has 112 mantissa bits, which gives about 112+1 * log10(2) = 34.01 ~ 35 digits of precision.
      */
     // Header is: Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
-    if (match_int8_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (int8_t) inA, (int8_t) inB, (int8_t) outR);
-    } else if (match_uint8_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
-    } else if (match_int16_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (int16_t) inA, (int16_t) inB, (int16_t) outR);
-    } else if (match_uint16_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
-    } else if (match_int32_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (int32_t) inA, (int32_t) inB, (int32_t) outR);
-    } else if (match_uint32_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32_t, %s, %Lf, %lu, %d, %d, %d",
-               operationName, timeDelta, loopIterations,
-               (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
-    } else if (match_int64_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64_t, %s, %Lf, %lu, %ld, %ld, %ld",
-               operationName, timeDelta, loopIterations,
-               (int64_t) inA, (int64_t) inB, (int64_t) outR);
-    } else if (match_uint64_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64_t, %s, %Lf, %lu, %ld, %ld, %ld",
-               operationName, timeDelta, loopIterations,
-               (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
-    } else if (match_float_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "float, %s, %Lf, %lu, %.8f, %.8f, %.8f",
-               operationName, timeDelta, loopIterations,
-               (float) inA, (float) inB, (float) outR);
-    } else if (match_double_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "double, %s, %Lf, %lu, %.16f, %.16f, %.16f",
-               operationName, timeDelta, loopIterations,
-               (double) inA, (double) inB, (double) outR);
-    } else if (match_long_double_Name) {
-      snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, %.35Lf, %.35Lf, %.35Lf",
-               operationName, timeDelta, loopIterations,
-               (long double) inA, (long double) inB, (long double) outR);
-    } else {
-      // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
-      snprintf(printBuffer, CHAR_BUFFER_SIZE,
-               "TypeSystem=unknown_AtLine_%d, OperationSetName=%s, TimeForOperations=%Lf, CountOfOperationsPerformed=%ld, "
-               "LHS=unknown, RHS=unknown, R=unknown",
-               __LINE__, operationName, timeDelta, loopIterations);
+    switch (mtR) {
+      case tse_int8_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "int8_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (int8_t) inA, (int8_t) inB, (int8_t) outR);
+        break;
+      case tse_uint8_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint8_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (uint8_t) inA, (uint8_t) inB, (uint8_t) outR);
+        break;
+      case tse_int16_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "int16_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (int16_t) inA, (int16_t) inB, (int16_t) outR);
+        break;
+      case tse_uint16_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint16_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (uint16_t) inA, (uint16_t) inB, (uint16_t) outR);
+        break;
+      case tse_int32_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "int32_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (int32_t) inA, (int32_t) inB, (int32_t) outR);
+        break;
+      case tse_uint32_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint32_t, %s, %Lf, %lu, %d, %d, %d",
+                 operationName, timeDelta, loopIterations,
+                 (uint32_t) inA, (uint32_t) inB, (uint32_t) outR);
+        break;
+      case tse_int64_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "int64_t, %s, %Lf, %lu, %ld, %ld, %ld",
+                 operationName, timeDelta, loopIterations,
+                 (int64_t) inA, (int64_t) inB, (int64_t) outR);
+        break;
+      case tse_uint64_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "uint64_t, %s, %Lf, %lu, %ld, %ld, %ld",
+                 operationName, timeDelta, loopIterations,
+                 (uint64_t) inA, (uint64_t) inB, (uint64_t) outR);
+        break;
+      case tse_float_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "float, %s, %Lf, %lu, %.8f, %.8f, %.8f",
+                 operationName, timeDelta, loopIterations,
+                 (float) inA, (float) inB, (float) outR);
+        break;
+      case tse_double_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "double, %s, %Lf, %lu, %.16f, %.16f, %.16f",
+                 operationName, timeDelta, loopIterations,
+                 (double) inA, (double) inB, (double) outR);
+        break;
+      case tse_long_double_e:
+        snprintf(printBuffer, CHAR_BUFFER_SIZE, "long double, %s, %Lf, %lu, %.35Lf, %.35Lf, %.35Lf",
+                 operationName, timeDelta, loopIterations,
+                 (long double) inA, (long double) inB, (long double) outR);
+      default:
+        // Type System, Operation Set Name, Time for Operations, Count of Operations Performed, LHS, RHS, R
+        snprintf(printBuffer, CHAR_BUFFER_SIZE,
+                 "TypeSystem=unknown_AtLine_%d, OperationSetName=%s, TimeForOperations=%Lf, CountOfOperationsPerformed=%ld, "
+                 "LHS=unknown, RHS=unknown, R=unknown",
+                 __LINE__, operationName, timeDelta, loopIterations);
+        break;
     }
     printf("%s\n", printBuffer);
     fprintf(fileContext, "%s\n", printBuffer);
@@ -722,17 +733,17 @@ void testTypes_Template_Focused(void) {
   size_t dataSetsSize = 1; // @todo
 
   for (size_t i = 0; i < arraySize; i++) {
-    randomInputs_int8_t[i] = gauss_rand<int8_t>(randSelect);
-    randomInputs_uint8_t[i] = gauss_rand<uint8_t>(randSelect);
-    randomInputs_int16_t[i] = gauss_rand<int16_t>(randSelect);
-    randomInputs_uint16_t[i] = gauss_rand<uint16_t>(randSelect);
-    randomInputs_int32_t[i] = gauss_rand<int32_t>(randSelect);
-    randomInputs_uint32_t[i] = gauss_rand<uint32_t>(randSelect);
-    randomInputs_int64_t[i] = gauss_rand<int64_t>(randSelect);
-    randomInputs_uint64_t[i] = gauss_rand<uint64_t>(randSelect);
-    randomInputs_float_t[i] = gauss_rand<float>(randSelect);
-    randomInputs_double_t[i] = gauss_rand<double>(randSelect);
-    randomInputs_long_double_t[i] = gauss_rand<long double>(randSelect);
+    randomInputs_int8_t[i] = gauss_rand<int8_t>(RANDOM_METHOD);
+    randomInputs_uint8_t[i] = gauss_rand<uint8_t>(RANDOM_METHOD);
+    randomInputs_int16_t[i] = gauss_rand<int16_t>(RANDOM_METHOD);
+    randomInputs_uint16_t[i] = gauss_rand<uint16_t>(RANDOM_METHOD);
+    randomInputs_int32_t[i] = gauss_rand<int32_t>(RANDOM_METHOD);
+    randomInputs_uint32_t[i] = gauss_rand<uint32_t>(RANDOM_METHOD);
+    randomInputs_int64_t[i] = gauss_rand<int64_t>(RANDOM_METHOD);
+    randomInputs_uint64_t[i] = gauss_rand<uint64_t>(RANDOM_METHOD);
+    randomInputs_float_t[i] = gauss_rand<float>(RANDOM_METHOD);
+    randomInputs_double_t[i] = gauss_rand<double>(RANDOM_METHOD);
+    randomInputs_long_double_t[i] = gauss_rand<long double>(RANDOM_METHOD);
   }
 
   testTypes_Template_typeless<int8_t>(randomInputs_int8_t[0], randomInputs_int8_t[1], fileContext, dataSetsSize);
@@ -787,10 +798,10 @@ bool testTypes_Template_Pthread_init(threadContextArray_t*& threadVector, size_t
   threadItem = &(threadVector->threadContextVectorMeta[indexThread]);
 
   do {
-    operandsMeta[0] = gauss_rand<Type>(RANDOM_METHOD);
+    operandsMeta[0] = typelessValid<Type>(RANDOM_METHOD);
   } while (0 == operandsMeta[0]);
   do {
-    operandsMeta[1] = gauss_rand<Type>(RANDOM_METHOD);
+    operandsMeta[1] = typelessValid<Type>(RANDOM_METHOD);
   } while (0 == operandsMeta[1]);
   setCharArray(messages);
   typelessStringName(operandsMeta[0], typeNameBuffer, false);
@@ -805,7 +816,7 @@ bool testTypes_Template_Pthread_init(threadContextArray_t*& threadVector, size_t
                               fileNameAbsolute,
                               operandsMeta,
                               OPERANDS_2_IN,
-                              &resultantsMeta,
+                              resultantsMeta,
                               RESULTANTS_1_OUT,
                               messages,
                               fileHeader.c_str());
@@ -825,106 +836,79 @@ void *testTypes_Template_Pthread(void *inArgs) {
   safeAlloc<char>(inOperandTypeName, CHAR_BUFFER_SIZE);
   size_t inOperandSize = sizeof(typeid(threadInfo->operandsMeta[0]).name());
   strncpy(inOperandTypeName, typeid(threadInfo->operandsMeta[0]).name(), inOperandSize);
-  const char *uint8_Name = typeid(uint8_t).name();
-  const char *int8_Name = typeid(int8_t).name();
-  const char *uint16_Name = typeid(uint16_t).name();
-  const char *int16_Name = typeid(int16_t).name();
-  const char *uint32_Name = typeid(uint32_t).name();
-  const char *int32_Name = typeid(int32_t).name();
-  const char *uint64_Name = typeid(uint64_t).name();
-  const char *int64_Name = typeid(int64_t).name();
-  const char *float_Name = typeid(float).name();
-  const char *double_Name = typeid(double).name();
-  const char *long_double_Name = typeid(long double).name();
-  bool match_uint8_Name = strcmp(inOperandTypeName, uint8_Name);
-  bool match_int8_Name = strcmp(inOperandTypeName, int8_Name);
-  bool match_uint16_Name = strcmp(inOperandTypeName, uint16_Name);
-  bool match_int16_Name = strcmp(inOperandTypeName, int16_Name);
-  bool match_uint32_Name = strcmp(inOperandTypeName, uint32_Name);
-  bool match_int32_Name = strcmp(inOperandTypeName, int32_Name);
-  bool match_uint64_Name = strcmp(inOperandTypeName, uint64_Name);
-  bool match_int64_Name = strcmp(inOperandTypeName, int64_Name);
-  bool match_float_Name = strcmp(inOperandTypeName, float_Name);
-  bool match_double_Name = strcmp(inOperandTypeName, double_Name);
-  bool match_long_double_Name = strcmp(inOperandTypeName, long_double_Name);
-  if (match_int8_Name) {
-    int8_t lhs = threadInfo->operandsMeta[0].int8_data;
-    int8_t rhs = threadInfo->operandsMeta[1].int8_data;
-    testTypes_Template_typeless<int8_t>(lhs,
-                                        rhs,
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
-  } else if (match_uint8_Name) {
-    uint8_t lhs = threadInfo->operandsMeta[0].uint8_data;
-    uint8_t rhs = threadInfo->operandsMeta[1].uint8_data;
-    testTypes_Template_typeless<uint8_t>(lhs,
-                                         rhs,
-                                         threadInfo->saveFileContext,
-                                         threadInfo->loopSetSize);
-  } else if (match_int16_Name) {
-    int16_t lhs = threadInfo->operandsMeta[0].int16_data;
-    int16_t rhs = threadInfo->operandsMeta[1].int16_data;
-    testTypes_Template_typeless<int16_t>(lhs,
-                                         rhs,
-                                         threadInfo->saveFileContext,
-                                         threadInfo->loopSetSize);
-  } else if (match_uint16_Name) {
-    uint16_t lhs = threadInfo->operandsMeta[0].uint16_data;
-    uint16_t rhs = threadInfo->operandsMeta[1].uint16_data;
-    testTypes_Template_typeless<uint16_t>(lhs,
-                                          rhs,
+
+  TypeSystemEnumeration_t mt = threadInfo->typeSystemName;
+  switch (mt) {
+    case tse_int8_e:
+      testTypes_Template_typeless<int8_t>(threadInfo->operandsMeta[0].int8_data,
+                                          threadInfo->operandsMeta[1].int8_data,
                                           threadInfo->saveFileContext,
                                           threadInfo->loopSetSize);
-  } else if (match_int32_Name) {
-    int32_t lhs = threadInfo->operandsMeta[0].int32_data;
-    int32_t rhs = threadInfo->operandsMeta[1].int32_data;
-    testTypes_Template_typeless<int32_t>(lhs,
-                                         rhs,
+      break;
+    case tse_uint8_e:
+      testTypes_Template_typeless<uint8_t>(threadInfo->operandsMeta[0].uint8_data,
+                                           threadInfo->operandsMeta[1].uint8_data,
+                                           threadInfo->saveFileContext,
+                                           threadInfo->loopSetSize);
+      break;
+    case tse_int16_e:
+      testTypes_Template_typeless<int16_t>(threadInfo->operandsMeta[0].int16_data,
+                                           threadInfo->operandsMeta[1].int16_data,
+                                           threadInfo->saveFileContext,
+                                           threadInfo->loopSetSize);
+      break;
+    case tse_uint16_e:
+      testTypes_Template_typeless<uint16_t>(threadInfo->operandsMeta[0].uint16_data,
+                                            threadInfo->operandsMeta[1].uint16_data,
+                                            threadInfo->saveFileContext,
+                                            threadInfo->loopSetSize);
+      break;
+    case tse_int32_e:
+      testTypes_Template_typeless<int32_t>(threadInfo->operandsMeta[0].int32_data,
+                                           threadInfo->operandsMeta[1].int32_data,
+                                           threadInfo->saveFileContext,
+                                           threadInfo->loopSetSize);
+      break;
+    case tse_uint32_e:
+      testTypes_Template_typeless<uint32_t>(threadInfo->operandsMeta[0].uint32_data,
+                                            threadInfo->operandsMeta[1].uint32_data,
+                                            threadInfo->saveFileContext,
+                                            threadInfo->loopSetSize);
+      break;
+    case tse_int64_e:
+      testTypes_Template_typeless<int64_t>(threadInfo->operandsMeta[0].int64_data,
+                                           threadInfo->operandsMeta[1].int64_data,
+                                           threadInfo->saveFileContext,
+                                           threadInfo->loopSetSize);
+      break;
+    case tse_uint64_e:
+      testTypes_Template_typeless<uint64_t>(threadInfo->operandsMeta[0].uint64_data,
+                                            threadInfo->operandsMeta[1].uint64_data,
+                                            threadInfo->saveFileContext,
+                                            threadInfo->loopSetSize);
+      break;
+    case tse_float_e:
+      testTypes_Template_typeless<float>(threadInfo->operandsMeta[0].float_data,
+                                         threadInfo->operandsMeta[1].float_data,
                                          threadInfo->saveFileContext,
                                          threadInfo->loopSetSize);
-  } else if (match_uint32_Name) {
-    uint32_t lhs = threadInfo->operandsMeta[0].int32_data;
-    uint32_t rhs = threadInfo->operandsMeta[1].int32_data;
-    testTypes_Template_typeless<uint32_t>(lhs,
-                                          rhs,
+      break;
+    case tse_double_e:
+      testTypes_Template_typeless<double>(threadInfo->operandsMeta[0].double_data,
+                                          threadInfo->operandsMeta[1].double_data,
                                           threadInfo->saveFileContext,
                                           threadInfo->loopSetSize);
-  } else if (match_int64_Name) {
-    int64_t lhs = threadInfo->operandsMeta[0].int64_data;
-    int64_t rhs = threadInfo->operandsMeta[1].int64_data;
-    testTypes_Template_typeless<int64_t>(lhs,
-                                         rhs,
-                                         threadInfo->saveFileContext,
-                                         threadInfo->loopSetSize);
-  } else if (match_uint64_Name) {
-    uint64_t lhs = threadInfo->operandsMeta[0].uint64_data;
-    uint64_t rhs = threadInfo->operandsMeta[1].uint64_data;
-    testTypes_Template_typeless<uint64_t>(lhs,
-                                          rhs,
-                                          threadInfo->saveFileContext,
-                                          threadInfo->loopSetSize);
-  } else if (match_float_Name) {
-    float lhs = threadInfo->operandsMeta[0].float_data;
-    float rhs = threadInfo->operandsMeta[1].float_data;
-    testTypes_Template_typeless<float>(lhs,
-                                       rhs,
-                                       threadInfo->saveFileContext,
-                                       threadInfo->loopSetSize);
-  } else if (match_double_Name) {
-    double lhs = threadInfo->operandsMeta[0].double_data;
-    double rhs = threadInfo->operandsMeta[1].double_data;
-    testTypes_Template_typeless<double>(lhs,
-                                        rhs,
-                                        threadInfo->saveFileContext,
-                                        threadInfo->loopSetSize);
-  } else if (match_long_double_Name) {
-    long double lhs = threadInfo->operandsMeta[0].longdouble_data;
-    long double rhs = threadInfo->operandsMeta[1].longdouble_data;
-    testTypes_Template_typeless<long double>(lhs,
-                                             rhs,
-                                             threadInfo->saveFileContext,
-                                             threadInfo->loopSetSize);
+      break;
+    case tse_long_double_e:
+      testTypes_Template_typeless<long double>(threadInfo->operandsMeta[0].longdouble_data,
+                                               threadInfo->operandsMeta[1].longdouble_data,
+                                               threadInfo->saveFileContext,
+                                               threadInfo->loopSetSize);
+    default:
+      asserterrorthread(threadInfo->threadTag);
+      break;
   }
+
   danglePtr = (void *) threadInfo;
   return danglePtr;
 }
@@ -933,7 +917,7 @@ void *testTypes_Template_Pthread(void *inArgs) {
 *
 * @return
 *****************************************************************************/
-bool threadContextMeta_init(threadContextMeta_t*& threadContextData) {
+bool threadContextMeta_init(threadContextMeta_t *&threadContextData) {
   bool isAllocated = false;
   bool isFilled = false;
   bool isValid;
@@ -941,17 +925,18 @@ bool threadContextMeta_init(threadContextMeta_t*& threadContextData) {
     safeAlloc<threadContextMeta_t>(threadContextData, 1);
   }
   if (NULL != threadContextData) {
-      isAllocated = true;
-      threadContextData->loopSetSize = 0;
-      threadContextData->threadTag = 0;
-      threadContextData->isExecuting = 0;
-      threadContextData->saveFilename = NULL;
-      threadContextData->saveFileContext = NULL;
-      threadContextData->datatypeIDName = NULL;
-      // threadContextData->operandsMeta = NULL;
-      // threadContextData->resultantsMeta = NULL;
-      threadContextData->messages = NULL;
-      isFilled = true;
+    isAllocated = true;
+    threadContextData->loopSetSize = 0;
+    threadContextData->threadTag = 0;
+    threadContextData->isExecuting = 0;
+    threadContextData->saveFilename = NULL;
+    threadContextData->saveFileContext = NULL;
+    threadContextData->datatypeIDName = NULL;
+    threadContextData->typeSystemName = tse_unknown_e;
+    // threadContextData->operandsMeta = NULL;
+    // threadContextData->resultantsMeta = NULL;
+    threadContextData->messages = NULL;
+    isFilled = true;
   }
   isValid = isAllocated && isFilled;
   return isValid;
@@ -1037,9 +1022,9 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
                            uint16_t threadTag,
                            uint8_t isExecuting,
                            char saveFilename[CHAR_BUFFER_SIZE],
-                           Type *operandsMeta,
+                           Type operandsMeta[OPERANDS_2_IN],
                            size_t operandsMetaSize,
-                           Type *resultantsMeta,
+                           Type resultantsMeta,
                            size_t resultantsMetaSize,
                            char messages[CHAR_BUFFER_SIZE],
                            const std::string fileHeader) {
@@ -1064,11 +1049,11 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     if (NULL == threadContextData->saveFileContext) {
       if (fs_Found_vet == fileIsFound(threadContextData->saveFilename)) {
         fileDelete(threadContextData->saveFilename);
-        fileOverwriteNil(threadContextData->saveFilename);
-        fileMakeDirectories(threadContextData->saveFilename);
-        fileCreate(threadContextData->saveFilename, (char*) fileHeader.c_str());
-        threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "a+");
       }
+      fileOverwriteNil(threadContextData->saveFilename);
+      fileMakeDirectories(threadContextData->saveFilename);
+      fileCreate(threadContextData->saveFilename, (char *) fileHeader.c_str());
+      threadContextData->saveFileContext = fopen(threadContextData->saveFilename, "a+");
     }
 
     // Construct string array
@@ -1080,15 +1065,68 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
     dataTypeSize = sizeof(typeid(tmp).name());
     strncpy(threadContextData->datatypeIDName, typeid(tmp).name(), dataTypeSize);
 
-    // Copy over meta data for operands and resultants
-    //if (NULL == threadContextData->operandsMeta){
-    //  safeAlloc<Type>((threadContextData->operandsMeta), operandsMetaSize);
-    //}
-    // memcpy(threadContextData->operandsMeta, operandsMeta, sizeof(Type) * operandsMetaSize);
-    //if (NULL == threadContextData->resultantsMeta){
-    //  safeAlloc((threadContextData->resultantsMeta), resultantsMetaSize);
-    //}
-    //memcpy(threadContextData->resultantsMeta, resultantsMeta, sizeof(Type) * resultantsMetaSize);
+    threadContextData->typeSystemName = typelessClassify<Type>(tmp);
+    switch (threadContextData->typeSystemName) {
+      case tse_int8_e:
+        threadContextData->operandsMeta[0].int8_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].int8_data = operandsMeta[1];
+        threadContextData->resultantsMeta.int8_data = resultantsMeta;
+        break;
+      case tse_uint8_e:
+        threadContextData->operandsMeta[0].uint8_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].uint8_data = operandsMeta[1];
+        threadContextData->resultantsMeta.uint8_data = resultantsMeta;
+        break;
+      case tse_int16_e:
+        threadContextData->operandsMeta[0].int16_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].int16_data = operandsMeta[1];
+        threadContextData->resultantsMeta.int16_data = resultantsMeta;
+        break;
+      case tse_uint16_e:
+        threadContextData->operandsMeta[0].uint16_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].uint16_data = operandsMeta[1];
+        threadContextData->resultantsMeta.uint16_data = resultantsMeta;
+        break;
+      case tse_int32_e:
+        threadContextData->operandsMeta[0].int32_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].int32_data = operandsMeta[1];
+        threadContextData->resultantsMeta.int32_data = resultantsMeta;
+        break;
+      case tse_uint32_e:
+        threadContextData->operandsMeta[0].uint32_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].uint32_data = operandsMeta[1];
+        threadContextData->resultantsMeta.uint32_data = resultantsMeta;
+        break;
+      case tse_int64_e:
+        threadContextData->operandsMeta[0].int64_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].int64_data = operandsMeta[1];
+        threadContextData->resultantsMeta.int64_data = resultantsMeta;
+        break;
+      case tse_uint64_e:
+        threadContextData->operandsMeta[0].uint64_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].uint64_data = operandsMeta[1];
+        threadContextData->resultantsMeta.uint64_data = resultantsMeta;
+        break;
+      case tse_float_e:
+        threadContextData->operandsMeta[0].float_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].float_data = operandsMeta[1];
+        threadContextData->resultantsMeta.float_data = resultantsMeta;
+        break;
+      case tse_double_e:
+        threadContextData->operandsMeta[0].double_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].double_data = operandsMeta[1];
+        threadContextData->resultantsMeta.double_data = resultantsMeta;
+        break;
+      case tse_long_double_e:
+        threadContextData->operandsMeta[0].longdouble_data = operandsMeta[0];
+        threadContextData->operandsMeta[1].longdouble_data = operandsMeta[1];
+        threadContextData->resultantsMeta.longdouble_data = resultantsMeta;
+      default:
+        bool isValid_Numerical = false;
+        printf("Operation=unknownType, A=unknown\n");
+        assertm(!isValid_Numerical, "Invalid type passing");
+        break;
+    }
 
     if (NULL == threadContextData->messages) {
       safeAlloc<char>(threadContextData->messages, CHAR_BUFFER_SIZE);
@@ -1115,6 +1153,7 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 #endif // LIBRARY_MODE
 {
+  showUsage();
   printArgs(argc, argv);
   // @todo fixme
   volatile size_t dataSetSize = INT8_MAX; // 4294967291; // 100000007;
@@ -1154,7 +1193,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
     (&my_test<volatile double>),
     (&my_test<volatile long double>)
   };
-
+  printf("Cores for Pthread() usage are: %zu\n", coreCount);
+  
   myTypelessTestFuncs = testTypes_Template_Pthread;
   threadContextArray_init(threadVector, testSize);
   testTypes_Template_Pthread_init<int8_t>(threadVector, 0, dataSetSize);
@@ -1216,15 +1256,16 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
       inProgressSize = inProgressQueue.size();
       while (inProgressSize > 0) {
         threadIndex = pop_front(inProgressQueue);
-        threadStatus = pthread_tryjoin_np(inProgressQueue[threadIndex], NULL);
+        // @todo queue pthread fix
+        threadStatus = pthread_tryjoin_np(threadContext[threadIndex], NULL);
         if (EBUSY == threadStatus) {
           push_back(inProgressQueue, threadIndex);
         } else if (EINVAL == threadStatus || ETIMEDOUT == threadStatus) {
-          fprintf(stderr, "Error on line %d : %s.\nThread %ld check status timeout or invalid.", __LINE__,
+          fprintf(stderr, "Error on line %d : %s.\nThread %ld check status timeout or invalid.\n", __LINE__,
                   strerror(errno), threadIndex);
           push_front(errorQueue, threadIndex);
         } else {
-          printf("Thread %ld complete.", threadIndex);
+          printf("Thread %ld complete.\n", threadIndex);
           push_back(completedQueue, threadIndex);
         }
         inProgressSize--;
@@ -1255,27 +1296,6 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
 /*======================================================================================================================
  * Helper functions
  * ===================================================================================================================*/
-
-/******************************************************************************
-*
-* @return
-*****************************************************************************/
-inline void errorAtLineThread(size_t threadIndex) {
-  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
-  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
-  fprintf(stderr, "Error in %s at line %d with %s.\n"
-                  "PRETTY_FUNCTION=%s\n"
-                  "CONTEXT=%s.\n"
-                  "Cannot create thread %ld: invalid setting or permission.",
-          __FILE__,
-          __LINE__,
-          __func__,
-          __PRETTY_FUNCTION__,
-          strerror(errno),
-          threadIndex);
-  return;
-}
-
 /******************************************************************************
 *
 * @return
@@ -1328,8 +1348,28 @@ inline void errorAtLine(void) {
 *
 * @return
 *****************************************************************************/
-void show_usage(void) {
-  printf("Usage: <option(s)> PARAMETER");
+inline void errorAtLineThread(size_t threadIndex) {
+  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
+  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
+  fprintf(stderr, "Error in %s at line %d with %s.\n"
+                  "PRETTY_FUNCTION=%s\n"
+                  "CONTEXT=%s.\n"
+                  "Cannot create thread %ld: invalid setting or permission.",
+          __FILE__,
+          __LINE__,
+          __func__,
+          __PRETTY_FUNCTION__,
+          strerror(errno),
+          threadIndex);
+  return;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+void showUsage(void) {
+  printf("Usage: <option(s)> PARAMETER\n");
   printf("Options:\n");
   printf("\t-h, --help\t\tShow this help message\n");
 }
@@ -1443,7 +1483,7 @@ template<typename Type>
 void *my_test(void *args) {
   void *voidPtr = NULL;
   size_t threadIDNumber = (size_t) &args;
-  printf("Starting %ld...", threadIDNumber);
+  printf("Starting %ld...\n", threadIDNumber);
   FILE * fileContext = NULL; // @todo fixme
   size_t dataSetSize = 1; // @todo fixme
   Type inType;
@@ -1663,7 +1703,7 @@ Type pop_front(std::vector<Type> &v) {
     dValue = v.front();
     v.erase(v.begin());
   } else {
-    printf("pop_front use warning is empty");
+    printf("pop_front use warning is empty\n");
     memset(&dValue, 0, sizeof(Type));
   }
   return dValue;
@@ -1802,7 +1842,7 @@ classType gauss_rand(int select) {
           V2 = 2 * U2 - 1;
           S = V1 * V1 + V2 * V2;
           if (escapeCount > escapeMax) {
-            errorAtLine();
+            asserterror();
             break;
           }
         } while (S >= 1 || S == 0);
@@ -1826,11 +1866,89 @@ classType gauss_rand(int select) {
 template<class classType>
 classType typelessValid(int select) {
   // Ensure random values are valid integers or floats
-  classType inA = (classType) 0;
+  classType inType = (classType) 0;
   bool isValid_Numerical = false;
   char inATypeName[CHAR_BUFFER_SIZE];
-  size_t inASize = sizeof(typeid(inA).name());
-  strncpy(inATypeName, typeid(inA).name(), inASize);
+  size_t inASize = sizeof(typeid(inType).name());
+  strncpy(inATypeName, typeid(inType).name(), inASize);
+  TypeSystemEnumeration_t mt = typelessClassify<classType>(inType);
+  dynamicCompact_t candidateValue;
+  do {
+    inType = gauss_rand<classType>(select);
+    switch (mt) {
+      case tse_int8_e:
+        candidateValue.int8_data = (int8_t) inType;
+        isValid_Numerical = (candidateValue.int8_data >= INT8_MIN && candidateValue.int8_data <= INT8_MAX);
+        printf("Operation=int8, A=%d\n", candidateValue.int8_data);
+        break;
+      case tse_uint8_e:
+        candidateValue.uint8_data = (uint8_t) inType;
+        isValid_Numerical = (candidateValue.uint8_data >= 0 && candidateValue.uint8_data <= UINT8_MAX);
+        printf("Operation=uint8, A=%d\n", candidateValue.uint8_data);
+        break;
+      case tse_int16_e:
+        candidateValue.int16_data = (int16_t) inType;
+        isValid_Numerical = (candidateValue.int16_data >= INT16_MIN && candidateValue.int16_data <= INT16_MAX);
+        printf("Operation=int16, A=%d\n", candidateValue.int16_data);
+        break;
+      case tse_uint16_e:
+        candidateValue.uint16_data = (uint16_t) inType;
+        isValid_Numerical = (candidateValue.uint16_data >= 0 && candidateValue.uint16_data <= UINT16_MAX);
+        printf("Operation=uint16, A=%d\n", candidateValue.uint16_data);
+        break;
+      case tse_int32_e:
+        candidateValue.int32_data = (int32_t) inType;
+        isValid_Numerical = (candidateValue.int32_data >= INT32_MIN && candidateValue.int32_data <= INT32_MAX);
+        printf("Operation=int32, A=%d\n", candidateValue.int32_data);
+        break;
+      case tse_uint32_e:
+        candidateValue.uint32_data = (uint32_t) inType;
+        isValid_Numerical = (candidateValue.uint32_data >= 0 && candidateValue.uint32_data <= UINT32_MAX);
+        printf("Operation=uint32, A=%d\n", candidateValue.uint32_data);
+        break;
+      case tse_int64_e:
+        candidateValue.int64_data = (int64_t) inType;
+        isValid_Numerical = (candidateValue.int64_data >= INT64_MIN && candidateValue.int64_data <= INT64_MAX);
+        printf("Operation=int64, A=%ld\n", candidateValue.int64_data);
+        break;
+      case tse_uint64_e:
+        candidateValue.uint64_data = (uint64_t) inType;
+        isValid_Numerical = (candidateValue.uint64_data >= 0 && candidateValue.uint64_data <= UINT64_MAX);
+        printf("Operation=uint64, A=%ld\n", candidateValue.uint64_data);
+        break;
+      case tse_float_e:
+        candidateValue.float_data = (float) inType;
+        isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.float_data));
+        printf("Operation=float, A=%f\n", candidateValue.float_data);
+        break;
+      case tse_double_e:
+        candidateValue.double_data = (double) inType;
+        isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.double_data));
+        printf("Operation=double, A=%f\n", candidateValue.double_data);
+        break;
+      case tse_long_double_e:
+        candidateValue.longdouble_data = (long double) inType;
+        isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue.longdouble_data));
+        printf("Operation=long_double, A=%Lf\n", candidateValue.longdouble_data);
+      default:
+        isValid_Numerical = false;
+        printf("Operation=unknownType, A=unknown\n");
+        assertm(!isValid_Numerical, "Invalid type passing");
+    }
+  } while (!isValid_Numerical);
+  return inType;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+template<class classType>
+TypeSystemEnumeration_t typelessClassify(classType inType) {
+  TypeSystemEnumeration_t detectedType;
+  char inTypeName[CHAR_BUFFER_SIZE];
+  size_t inASize = sizeof(typeid(inType).name());
+  strncpy(inTypeName, typeid(inType).name(), inASize);
 
   const char *uint8_Name = typeid(uint8_t).name();
   const char *int8_Name = typeid(int8_t).name();
@@ -1844,71 +1962,44 @@ classType typelessValid(int select) {
   const char *double_Name = typeid(double).name();
   const char *long_double_Name = typeid(long double).name();
 
-  bool match_uint8_Name = strcmp(inATypeName, uint8_Name);
-  bool match_int8_Name = strcmp(inATypeName, int8_Name);
-  bool match_uint16_Name = strcmp(inATypeName, uint16_Name);
-  bool match_int16_Name = strcmp(inATypeName, int16_Name);
-  bool match_uint32_Name = strcmp(inATypeName, uint32_Name);
-  bool match_int32_Name = strcmp(inATypeName, int32_Name);
-  bool match_uint64_Name = strcmp(inATypeName, uint64_Name);
-  bool match_int64_Name = strcmp(inATypeName, int64_Name);
-  bool match_float_Name = strcmp(inATypeName, float_Name);
-  bool match_double_Name = strcmp(inATypeName, double_Name);
-  bool match_long_double_Name = strcmp(inATypeName, long_double_Name);
-  do {
-    inA = gauss_rand<classType>(select);
+  bool match_uint8_Name = strcmp(inTypeName, uint8_Name);
+  bool match_int8_Name = strcmp(inTypeName, int8_Name);
+  bool match_uint16_Name = strcmp(inTypeName, uint16_Name);
+  bool match_int16_Name = strcmp(inTypeName, int16_Name);
+  bool match_uint32_Name = strcmp(inTypeName, uint32_Name);
+  bool match_int32_Name = strcmp(inTypeName, int32_Name);
+  bool match_uint64_Name = strcmp(inTypeName, uint64_Name);
+  bool match_int64_Name = strcmp(inTypeName, int64_Name);
+  bool match_float_Name = strcmp(inTypeName, float_Name);
+  bool match_double_Name = strcmp(inTypeName, double_Name);
+  bool match_long_double_Name = strcmp(inTypeName, long_double_Name);
 
-    if (match_int8_Name) {
-      int8_t candidateValue = (int8_t) inA;
-      isValid_Numerical = (candidateValue >= INT8_MIN && candidateValue <= INT8_MAX);
-      printf("Operation=int8, A=%d", candidateValue);
-    } else if (match_uint8_Name) {
-      uint8_t candidateValue = (uint8_t) inA;
-      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT8_MAX);
-      printf("Operation=uint8, A=%d", candidateValue);
-    } else if (match_int16_Name) {
-      int16_t candidateValue = (int16_t) inA;
-      isValid_Numerical = (candidateValue >= INT16_MIN && candidateValue <= INT16_MAX);
-      printf("Operation=int16, A=%d", candidateValue);
-    } else if (match_uint16_Name) {
-      uint16_t candidateValue = (uint16_t) inA;
-      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT16_MAX);
-      printf("Operation=uint16, A=%d", candidateValue);
-    } else if (match_int32_Name) {
-      int32_t candidateValue = (int32_t) inA;
-      isValid_Numerical = (candidateValue >= INT32_MIN && candidateValue <= INT32_MAX);
-      printf("Operation=int32, A=%d", candidateValue);
-    } else if (match_uint32_Name) {
-      uint32_t candidateValue = (uint32_t) inA;
-      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT32_MAX);
-      printf("Operation=uint32, A=%d", candidateValue);
-    } else if (match_int64_Name) {
-      int64_t candidateValue = (int64_t) inA;
-      isValid_Numerical = (candidateValue >= INT64_MIN && candidateValue <= INT64_MAX);
-      printf("Operation=int64, A=%ld", candidateValue);
-    } else if (match_uint64_Name) {
-      uint64_t candidateValue = (uint64_t) inA;
-      isValid_Numerical = (candidateValue >= 0 && candidateValue <= UINT64_MAX);
-      printf("Operation=uint64, A=%ld", candidateValue);
-    } else if (match_float_Name) {
-      float candidateValue = (float) inA;
-      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
-      printf("Operation=float, A=%f", candidateValue);
-    } else if (match_double_Name) {
-      double candidateValue = (double) inA;
-      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
-      printf("Operation=double, A=%f", candidateValue);
-    } else if (match_long_double_Name) {
-      long double candidateValue = (long double) inA;
-      isValid_Numerical = (FP_NORMAL == std::fpclassify(candidateValue));
-      printf("Operation=long_double, A=%Lf", candidateValue);
-    } else {
-      isValid_Numerical = false;
-      printf("Operation=unknownType, A=unknown");
-      assertm(!isValid_Numerical, "Invalid type passing");
-    }
-  } while (!isValid_Numerical);
-  return inA;
+  if (match_int8_Name) {
+    detectedType = tse_int8_e;
+  } else if (match_uint8_Name) {
+    detectedType = tse_uint8_e;
+  } else if (match_int16_Name) {
+    detectedType = tse_int16_e;
+  } else if (match_uint16_Name) {
+    detectedType = tse_uint16_e;
+  } else if (match_int32_Name) {
+    detectedType = tse_int32_e;
+  } else if (match_uint32_Name) {
+    detectedType = tse_uint32_e;
+  } else if (match_int64_Name) {
+    detectedType = tse_int64_e;
+  } else if (match_uint64_Name) {
+    detectedType = tse_uint64_e;
+  } else if (match_float_Name) {
+    detectedType = tse_float_e;
+  } else if (match_double_Name) {
+    detectedType = tse_double_e;
+  } else if (match_long_double_Name) {
+    detectedType = tse_long_double_e;
+  } else {
+    detectedType = tse_unknown_e;
+  }
+  return detectedType;
 }
 
 /******************************************************************************
@@ -1918,10 +2009,10 @@ classType typelessValid(int select) {
 bool fileDelete(char fileName[CHAR_BUFFER_SIZE]) {
   bool isDeleted = false;
   if (0 == remove(fileName)) {
-    printf("File %s has successful been deleted.", fileName);
+    printf("File %s has successful been deleted.\n", fileName);
     isDeleted = true;
   } else {
-    fprintf(stderr, "File %s has successful been deleted.", fileName);
+    fprintf(stderr, "File %s has successful been deleted.\n", fileName);
   }
   return isDeleted;
 }
@@ -2098,7 +2189,7 @@ bool fileGetCurrentWorkingDirectory(char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
         break;
       default:
         // EINVAL, EIO, ENOENT, ENOTDIR, ERANGE
-        errorAtLine();
+        asserterror();
         break;
     }
   } else {
@@ -2120,17 +2211,35 @@ bool fileMakeDirectory(const char absoluteFolderPath[CHAR_BUFFER_SIZE]) {
   if (ret == -1) {
     switch (errno) {
       case EACCES:
-        printf("the parent directory does not allow write");
+        printf("the parent directory does not allow write\n");
         break;
       case EEXIST:
-        printf("pathname already exists");
+        printf("pathname already exists\n");
         break;
       case ENAMETOOLONG:
-        printf("pathname is too long");
+        printf("pathname is too long\n");
+        break;
+      case EMLINK:
+        asserterror();
+        break;
+      case ELOOP:
+        asserterror();
+        break;
+      case ENOENT:
+        asserterror();
+        break;
+      case ENOSPC:
+        asserterror();
+        break;
+      case ENOTDIR:
+        asserterror();
+        break;
+      case EROFS:
+        asserterror();
         break;
       default:
-        // EMLINK, ELOOP, ENOENT, ENOSPC, ENOTDIR, EROFS
-        errorAtLine();
+        // Other failure
+        asserterror();
         break;
     }
   } else {
