@@ -267,7 +267,7 @@ NPROCS_GREATEREQ_ZERO := $(shell echo ${NPROCS_DIV}\>${ZERO_VALUE} | bc)
 ifeq ($(NPROCS_GREATEREQ_ZERO),0)
 NPROCS_DIV = 1
 endif
-# MAKEFLAGS += -j$(NPROCS)
+MAKEFLAGS += -j$(NPROCS)
 $(info Make runs in parallel, set to $(NPROCS), half is $(NPROCS_DIV). Comment out MAKEFLAGS is you want serial.)
 ###############################################################################
 # Target
@@ -355,19 +355,34 @@ run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
 # Performance profile execute and compile
 ########################################################################################################################
 cpuBenchmarkFaster: create_dirs
-	$(info Making program faster by -fprofile-generate -fprofile-use)
+	$(info Making cpuBenchmark program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: cpuBenchmarkFaster
 
+cpuBenchmarkParallelFaster: create_dirs
+	$(info Making cpuBenchmarkParallel program faster by -fprofile-generate -fprofile-use)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
+	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
+	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+.PHONY: cpuBenchmarkParallelFaster
+
 ########################################################################################################################
 # Debugging make file options. Only for developer usage.
 ########################################################################################################################
 # Controlled test for debugging.
 # Valgrind and debug program if we encounter issues.
-grinder: create_dirs
-	$(info Debugging program log is grinder.log)
-	$(FPBENCH_GRIND) --undef-value-errors=no --main-stacksize=99999999 --max-stackframe=99999999 --valgrind-stacksize=10485760 --num-callers=500 --verbose --log-file=$(BDIR)/grinder.log $(BDIR)/$(TEST_CPP_BIN).a
-.PHONY: grinder
+VALGRIND_FLAGS=--undef-value-errors=no --main-stacksize=99999999 --max-stackframe=99999999 --valgrind-stacksize=10485760 --num-callers=500 --verbose
+GRIND_LOG=Grinder.log
+cpuBenchmarkGrinder: create_dirs cpuBenchmark
+	$(info Debugging program log is cpuBenchmarkGrinder.log)
+	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_CPP_BIN).a
+.PHONY: cpuBenchmarkGrinder
+
+cpuBenchmarkParallelGrinder: create_dirs cpuBenchmarkParallel
+	$(info Debugging program log is cpuBenchmarkParallelGrinder.log)
+	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+.PHONY: cpuBenchmarkParallelGrinder
