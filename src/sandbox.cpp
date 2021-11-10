@@ -16,6 +16,8 @@
  =============================================================================*/
 // #pragma once // Only used in header files.
 
+#define CHAR_PTHREAD_NAMELEN_MAX 16
+
 typedef enum TypeSystemEnumeration_e
 {
   tse_int8_e = 1,
@@ -469,3 +471,372 @@ struct typeDetect {
   my_test<volatile double>("double"),
   my_test<volatile long double>("long double")};
  */
+
+// @todo fixme
+threadContextMeta_t * newContextMeta(size_t size){
+  return new threadContextMeta_t[size];
+}
+
+// @todo fixme
+typedef struct threadContextMetaArray {
+private:
+  std::vector<threadContextMeta_t> data;
+public:
+  threadContextMetaArray(size_t size){
+    std::vector<threadContextMeta_t> NuData;
+    this->data = NuData;
+  }
+  threadContextMeta_t& operator [] (size_t size) {
+    return data[size];
+  }
+} threadContextMetaArray_t;
+
+inline void errorAtLine(void);
+inline void errorAtLineThread(size_t threadIndex);
+void testTypes(void);
+void *testTypes_Exact(void *inArgs);
+void testTypes_Template_Focused(void);
+
+
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+void *testTypes_Exact(void *inArgs) {
+  void *danglePtr = NULL; // @todo fixme
+  FILE* fileContext = NULL; // @todo fixme
+  size_t dataSetsSize =  1; // @todo fixme
+  testTypes_Template_typeless<int8_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint8_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int16_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint16_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int32_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint32_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<int64_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint64_t>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<float>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<double>(3.14, 42, fileContext, dataSetsSize);
+  testTypes_Template_typeless<long double>(3.14, 42, fileContext, dataSetsSize);
+  return danglePtr;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+void testTypes_Template_Focused(void) {
+  const size_t arraySize = 2;
+  const int randSelect = 3;
+  int8_t randomInputs_int8_t[arraySize];
+  uint8_t randomInputs_uint8_t[arraySize];
+  int16_t randomInputs_int16_t[arraySize];
+  uint16_t randomInputs_uint16_t[arraySize];
+  int32_t randomInputs_int32_t[arraySize];
+  uint32_t randomInputs_uint32_t[arraySize];
+  int64_t randomInputs_int64_t[arraySize];
+  uint64_t randomInputs_uint64_t[arraySize];
+  float randomInputs_float_t[arraySize];
+  double randomInputs_double_t[arraySize];
+  long double randomInputs_long_double_t[arraySize];
+  FILE * fileContext = NULL; // @todo fixme
+  size_t dataSetsSize = 1; // @todo
+
+  for (size_t i = 0; i < arraySize; i++) {
+    randomInputs_int8_t[i] = gauss_rand<int8_t>(RANDOM_METHOD);
+    randomInputs_uint8_t[i] = gauss_rand<uint8_t>(RANDOM_METHOD);
+    randomInputs_int16_t[i] = gauss_rand<int16_t>(RANDOM_METHOD);
+    randomInputs_uint16_t[i] = gauss_rand<uint16_t>(RANDOM_METHOD);
+    randomInputs_int32_t[i] = gauss_rand<int32_t>(RANDOM_METHOD);
+    randomInputs_uint32_t[i] = gauss_rand<uint32_t>(RANDOM_METHOD);
+    randomInputs_int64_t[i] = gauss_rand<int64_t>(RANDOM_METHOD);
+    randomInputs_uint64_t[i] = gauss_rand<uint64_t>(RANDOM_METHOD);
+    randomInputs_float_t[i] = gauss_rand<float>(RANDOM_METHOD);
+    randomInputs_double_t[i] = gauss_rand<double>(RANDOM_METHOD);
+    randomInputs_long_double_t[i] = gauss_rand<long double>(RANDOM_METHOD);
+  }
+
+  testTypes_Template_typeless<int8_t>(randomInputs_int8_t[0], randomInputs_int8_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint8_t>(randomInputs_uint8_t[0], randomInputs_uint8_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int16_t>(randomInputs_int16_t[0], randomInputs_int16_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint16_t>(randomInputs_uint16_t[0], randomInputs_uint16_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint32_t>(randomInputs_int32_t[0], randomInputs_int32_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<int64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<uint64_t>(randomInputs_int64_t[0], randomInputs_int64_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<float>(randomInputs_float_t[0], randomInputs_float_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<double>(randomInputs_double_t[0], randomInputs_double_t[1], fileContext, dataSetsSize);
+  testTypes_Template_typeless<long double>(randomInputs_long_double_t[0], randomInputs_long_double_t[1], fileContext, dataSetsSize);
+  return;
+}
+
+// @todo C++: Generate array to function pointers in a loop.
+func_ptr myTestFuncs[] = {
+  (&my_test<volatile signed char>),
+  (&my_test<volatile unsigned char>),
+  (&my_test<volatile signed short>),
+  (&my_test<volatile unsigned short>),
+  (&my_test<volatile signed int>),
+  (&my_test<volatile unsigned int>),
+  (&my_test<volatile signed long>),
+  (&my_test<volatile unsigned long>),
+  (&my_test<volatile signed long long>),
+  (&my_test<volatile unsigned long long>),
+  (&my_test<volatile float>),
+  (&my_test<volatile double>),
+  (&my_test<volatile long double>)
+};
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+inline void errorAtLine(void) {
+  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
+  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
+  fprintf(stderr, "Error in %s at line %d with %s.\n"
+                  "PRETTY_FUNCTION=%s\n"
+                  "CONTEXT=%s.\n",
+          __FILE__,
+          __LINE__,
+          __func__,
+          __PRETTY_FUNCTION__,
+          strerror(errno));
+  return;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+inline void errorAtLineThread(size_t threadIndex) {
+  // https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html
+  // https://gcc.gnu.org/onlinedocs/gcc-4.5.1/gcc/Function-Names.html#Function-Names
+  fprintf(stderr, "Error in %s at line %d with %s.\n"
+                  "PRETTY_FUNCTION=%s\n"
+                  "CONTEXT=%s.\n"
+                  "Cannot create thread %ld: invalid setting or permission.",
+          __FILE__,
+          __LINE__,
+          __func__,
+          __PRETTY_FUNCTION__,
+          strerror(errno),
+          threadIndex);
+  return;
+}
+
+/******************************************************************************
+*
+* @return
+*****************************************************************************/
+template<typename Type>
+void *my_test(void *args) {
+  void *voidPtr = NULL;
+  size_t threadIDNumber = (size_t) &args;
+  printf("Starting %ld...\n", threadIDNumber);
+  FILE * fileContext = NULL; // @todo fixme
+  size_t dataSetSize = 1; // @todo fixme
+  Type inType;
+  char *name = (char *) (typeid(inType).name());
+  double t1;
+  volatile Type v_add, v_sub, v_addsub, v_subadd, v_mul, v_div, v_muldiv, v_sqsqrtmul;
+  v_add = v_sub = v_addsub = v_subadd = v_mul = v_div = v_muldiv = v_sqsqrtmul = 0;
+  // Do not use constants or repeating values
+  //  to avoid loop unroll optimizations.
+  // All values >0 to avoid division by 0
+  // Perform ten ops/iteration to reduce
+  //  impact of ++i below on measurements
+  volatile long int modSize = 256;
+  volatile long int divSize = 16;
+  volatile Type v0 = 0;
+  volatile Type v1 = 0;
+  volatile Type v2 = 0;
+  volatile Type v3 = 0;
+  volatile Type v4 = 0;
+  volatile Type v5 = 0;
+  volatile Type v6 = 0;
+  volatile Type v7 = 0;
+  volatile Type v8 = 0;
+  volatile Type v9 = 0;
+
+  while (v0 == 0) {
+    v0 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v1 == 0) {
+    v1 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v2 == 0) {
+    v2 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v3 == 0) {
+    v3 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v4 == 0) {
+    v4 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v5 == 0) {
+    v5 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v6 == 0) {
+    v6 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v7 == 0) {
+    v7 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v8 == 0) {
+    v8 = (Type) (rand() % modSize) / divSize + 1;
+  }
+  while (v9 == 0) {
+    v9 = (Type) (rand() % modSize) / divSize + 1;
+  }
+
+  // Addition
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_add += v9;
+    v_add += v0;
+    v_add += v1;
+    v_add += v2;
+    v_add += v3;
+    v_add += v4;
+    v_add += v5;
+    v_add += v6;
+    v_add += v7;
+    v_add += v8;
+    v_add += v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, add, %f, [%d]\n", name, getTime() - t1, (int) v_add & 1);
+  fprintf(fileContext, "%s, add, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_add & 1);
+
+  // Subtraction
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_sub -= v9;
+    v_sub -= v0;
+    v_sub -= v1;
+    v_sub -= v2;
+    v_sub -= v3;
+    v_sub -= v4;
+    v_sub -= v5;
+    v_sub -= v6;
+    v_sub -= v7;
+    v_sub -= v8;
+    v_sub -= v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, sub, %f, [%d]\n", name, getTime() - t1, (int) v_sub & 1);
+  fprintf(fileContext, "%s, sub, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_sub & 1);
+
+  // Addition/Subtraction
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_addsub += v9;
+    v_addsub += v0;
+    v_addsub -= v1;
+    v_addsub += v2;
+    v_addsub -= v3;
+    v_addsub += v4;
+    v_addsub -= v5;
+    v_addsub += v6;
+    v_addsub -= v7;
+    v_addsub += v8;
+    v_addsub -= v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, add/sub, %f, [%d]\n", name, getTime() - t1, (int) v_addsub & 1);
+  fprintf(fileContext, "%s, add/sub, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_addsub & 1);
+
+  // Multiply
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_mul *= v9;
+    v_mul *= v0;
+    v_mul *= v1;
+    v_mul *= v2;
+    v_mul *= v3;
+    v_mul *= v4;
+    v_mul *= v5;
+    v_mul *= v6;
+    v_mul *= v7;
+    v_mul *= v8;
+    v_mul *= v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, mul, %f, [%d]\n", name, getTime() - t1, (int) v_mul & 1);
+  fprintf(fileContext, "%s, mul, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_mul & 1);
+
+  // Divide
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_div /= v9;
+    v_div /= v0;
+    v_div /= v1;
+    v_div /= v2;
+    v_div /= v3;
+    v_div /= v4;
+    v_div /= v5;
+    v_div /= v6;
+    v_div /= v7;
+    v_div /= v8;
+    v_div /= v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, div, %f, [%d]\n", name, getTime() - t1, (int) v_div & 1);
+  fprintf(fileContext, "%s, div, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_div & 1);
+
+  // Multiply/Divide
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_muldiv *= v9;
+    v_muldiv *= v0;
+    v_muldiv /= v1;
+    v_muldiv *= v2;
+    v_muldiv /= v3;
+    v_muldiv *= v4;
+    v_muldiv /= v5;
+    v_muldiv *= v6;
+    v_muldiv /= v7;
+    v_muldiv *= v8;
+    v_muldiv /= v9;
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, mul/div, %f, [%d]\n", name, getTime() - t1, (int) v_muldiv & 1);
+  fprintf(fileContext, "%s, mul/div, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10), (int) v_muldiv & 1);
+
+  // Square/SquareRoot/Multiply
+  t1 = getTime();
+  for (volatile size_t i = 0; i < dataSetSize; ++i) {
+    v_sqsqrtmul *= sqrt(v9 * v9);
+    v_sqsqrtmul *= sqrt(v0 * v0);
+    v_sqsqrtmul *= sqrt(v1 * v1);
+    v_sqsqrtmul *= sqrt(v2 * v2);
+    v_sqsqrtmul *= sqrt(v3 * v3);
+    v_sqsqrtmul *= sqrt(v4 * v4);
+    v_sqsqrtmul *= sqrt(v5 * v5);
+    v_sqsqrtmul *= sqrt(v6 * v6);
+    v_sqsqrtmul *= sqrt(v7 * v7);
+    v_sqsqrtmul *= sqrt(v8 * v8);
+    v_sqsqrtmul *= sqrt(v9 * v9);
+  }
+  // Pretend we make use of v so compiler doesn't optimize out
+  //  the loop completely
+  printf("%s, mul/sqrt/sq, %f, [%d]\n", name, getTime() - t1, (int) v_sqsqrtmul & 1);
+  fprintf(fileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, getTime() - t1,
+          (unsigned long long int) (dataSetSize * 10 * 3), (int) v_sqsqrtmul & 1);
+  printf("Ending %ld...", threadIDNumber);
+
+  return voidPtr;
+}
