@@ -240,6 +240,10 @@ int fileDirectoryExists(const char selectPath[CHAR_BUFFER_SIZE]);
 int fileGetDirectory(const char selectPath[CHAR_BUFFER_SIZE],
                      char foundDirectory[CHAR_BUFFER_SIZE]);
 
+double getCPUInfoTokenDouble(const char *matchString, uint64_t matchStringSize);
+
+long double getCPUFrequency(void);
+
 // Template functions.
 template<typename Type>
 void push_front(std::vector<Type> &v, Type val);
@@ -1080,6 +1084,8 @@ int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
   coreCount = getNumCores();
   activeThreadCount = 0;
   printf("Cores for Pthread() usage are: %zu\n", coreCount);
+  printf("CPU frequency %Lf KHz\n", getCPUFrequency());
+
   // Function pointer list
   myTypelessTestFuncs = testTypes_Template_Pthread;
   // Allocate
@@ -2057,6 +2063,127 @@ int fileGetDirectory(const char selectPath[CHAR_BUFFER_SIZE],
   }
   strncpy(foundDirectory, directoryPath, CHAR_BUFFER_SIZE);
   return returnStatus;
+}
+
+/* Processor Specific Model Notes:
+ $ lscpu | grep MHz
+ CPU MHz:                         3200.011
+ CPU max MHz:                     3500.0000
+ CPU min MHz:                     1200.0000
+
+ $ cat /proc/cpuinfo
+ processor	: 0
+ vendor_id	: GenuineIntel
+ cpu family	: 6
+ model		: 79
+ model name	: Intel(R) Xeon(R) CPU E5-2687W v4 @ 3.00GHz
+ stepping	: 1
+ microcode	: 0xb00003e
+ cpu MHz		: 3200.015
+ cache size	: 30720 KB
+ physical id	: 0
+ siblings	: 12
+ core id		: 0
+ cpu cores	: 12
+ apicid		: 0
+ initial apicid	: 0
+ fpu		: yes
+ fpu_exception	: yes
+ cpuid level	: 20
+ wp		: yes
+ flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cdp_l3 invpcid_single pti intel_ppin ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm cqm rdt_a rdseed adx smap intel_pt xsaveopt cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts md_clear flush_l1d
+ bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs taa itlb_multihit
+ bogomips	: 6000.02
+ clflush size	: 64
+ cache_alignment	: 64
+ address sizes	: 46 bits physical, 48 bits virtual
+ power management:
+*/
+double getCPUInfoTokenDouble(const char *matchString, uint64_t matchStringSize) {
+  double foundFrequency = 0.0;
+  static char buffer[CHAR_BUFFER_SIZE];
+  static char digits[CHAR_BUFFER_SIZE];
+  int64_t bufferLimit = CHAR_BUFFER_SIZE - 1;
+  int64_t minCompareSize;
+  int64_t characters;
+  uint64_t bufferIndex;
+  uint64_t digitsIndex;
+  uint64_t nextIndex;
+  FILE *cpuInfoFile;
+  int matchCode;
+  int foundFirstDigit, foundDigit;
+
+  // Set buffer ends to NULL char.
+  buffer[bufferLimit] = '\0';
+  digits[bufferLimit] = '\0';
+
+  // Open CPU info file.
+  cpuInfoFile = fopen("/proc/cpuinfo", "rb");
+  if (NULL == cpuInfoFile) {
+    fprintf(stderr, "ERROR! Cannot retrieve CPU Information from /proc/cpuinfo\n.");
+    return foundFrequency;
+  } else {
+    do {
+      characters = (int64_t)(fgets(buffer, bufferLimit, cpuInfoFile));
+      if ((int64_t)matchStringSize <= characters) {
+        minCompareSize = (int64_t)matchStringSize;
+      }
+      else {
+        minCompareSize = characters;
+      }
+      if (minCompareSize <= bufferLimit) {
+        minCompareSize = minCompareSize;
+      }
+      else {
+        minCompareSize = bufferLimit;
+      }
+      matchCode = strncmp(matchString, buffer, matchStringSize);
+      if (0 == matchCode) {
+        digitsIndex = 0;
+        foundFirstDigit = 0;
+        for (bufferIndex = 0; bufferIndex < bufferLimit; bufferIndex++) {
+          foundDigit = isdigit(buffer[bufferIndex]);
+          if ((0 == foundFirstDigit) && (1 == foundDigit)) {
+            foundFirstDigit = 1;
+          }
+
+          if ((1 == foundFirstDigit) && (1 == foundDigit)) {
+              digits[digitsIndex] = buffer[bufferIndex];
+              digitsIndex++;
+          }
+          else if ((1 == foundFirstDigit) && (0 == foundDigit)) {
+            break;
+          }
+        }
+        if (digitsIndex > 0) {
+          nextIndex = digitsIndex + 1;
+          if (nextIndex < bufferLimit) {
+            digits[digitsIndex + 1] = '\0';
+          }
+          foundFrequency = strtod(digits, NULL);
+          break;
+        }
+      }
+    } while ((int64_t) NULL != characters);
+  }
+  return foundFrequency;
+}
+
+long double getCPUFrequency(void) {
+  const double convertMegaToKilo = 1000;
+  char matchString[7];
+  matchString[0] = 'c';
+  matchString[1] = 'p';
+  matchString[2] = 'u';
+  matchString[3] = ' ';
+  matchString[4] = 'M';
+  matchString[5] = 'H';
+  matchString[6] = 'z';
+  int64_t matchStringSize = sizeof(matchString) / sizeof(matchString[0]);
+  double foundFreq = getCPUInfoTokenDouble(matchString, matchStringSize);
+  // Convert MHz to KHz
+  foundFreq = foundFreq * convertMegaToKilo;
+  return foundFreq;
 }
 
 #endif // _CPUBENCHMARKPARALLEL_CPP_
