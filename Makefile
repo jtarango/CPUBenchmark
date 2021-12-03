@@ -343,12 +343,12 @@ cpuBenchmarkParallel: create_dirs
 ########################################################################################################################
 run_cpuBenchmark: create_dirs cpuBenchmark
 	$(info Run cpuBenchmark testharness)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: run_cpuBenchmark
 
 run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
 	$(info Run cpuBenchmarkParallel testharness)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 .PHONY: run_cpuBenchmarkParallel
 
 ########################################################################################################################
@@ -357,17 +357,17 @@ run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
 cpuBenchmarkFaster: create_dirs
 	$(info Making cpuBenchmark program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: cpuBenchmarkFaster
 
 cpuBenchmarkParallelFaster: create_dirs
 	$(info Making cpuBenchmarkParallel program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 .PHONY: cpuBenchmarkParallelFaster
 
 ########################################################################################################################
