@@ -325,15 +325,15 @@ cpuBenchmark: create_dirs
 
 run_cpuBenchmark: create_dirs cpuBenchmark
 	$(info Run cpuBenchmark testharness)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: run_cpuBenchmark
 
 cpuBenchmarkFaster: create_dirs
 	$(info Making program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS)     -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 	$(COMPILER)            $(COMPILEFLAGS)     -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) .$(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
 .PHONY: cpuBenchmarkFaster
 
 ########################################################################################################################
