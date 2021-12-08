@@ -198,7 +198,7 @@ endif
 ifeq ($(origin LIBS),undefined)
     $(info LIBS is undefined)
 else
-    LIBS = -lm $(LIBS)
+    LIBS = $(LIBS) -lm
 endif
 
 LDFLAGS_PTHREAD=-lpthread $(LIBS)
