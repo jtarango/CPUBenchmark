@@ -44,20 +44,58 @@
 #                     |   .js                |   A line at the top of the file called the shebang specifies what interpreter to run the file with.
 #                     |                      |   Windows only supports .bat and .cmd files as Batch files, and .vbs (vbscript) and .js (JScript, not to be confused with JavaScript) via the Windows Script Host (WSH).
 ###############################################################################
+# MAKEFILE_LIST
+#	Contains the name of each makefile that is parsed by make, in the order in which it was parsed. The name is appended
+#   just before make begins to parse the makefile. Thus, if the first thing a makefile does is examine the last word in
+#   this variable, it will be the name of the current makefile. Once the current makefile has used include, however,
+#   the last word will be the just-included makefile.
+#   @echo $(lastword $(MAKEFILE_LIST))
+###############################################################################
+# GCC, GPP, LLVM Compiler information.
+# Refer to:
+# 	https://www.gnu.org/software/make/manual/make.html#index-ARFLAGS
+#   https://gcc.gnu.org/onlinedocs/gcc/Environment-Variables.html
+# CC is the compiler to use such as GCC
+# LIBRARY_PATH, LD_LIBRARY_PATH
+# 	The value of LIBRARY_PATH is a colon-separated list of directories, much like PATH. When configured as a native
+#   compiler, GCC tries the directories thus specified when searching for special linker files, if it cannot find them
+#   using GCC_EXEC_PREFIX. Linking using GCC also uses these directories when searching for ordinary libraries for the
+#   -l option (but directories specified with -L come first).
+# CPATH, C_INCLUDE_PATH, CPLUS_INCLUDE_PATH, OBJC_INCLUDE_PATH
+#	Each variable’s value is a list of directories separated by a special character, much like PATH, in which to look
+#   for header files. The special character, PATH_SEPARATOR, is target-dependent and determined at GCC build time. For
+#   Microsoft Windows-based targets it is a semicolon, and for almost all other targets it is a colon.
+#   CPATH specifies a list of directories to be searched as if specified with -I, but after any paths given with -I
+#   options on the command line. This environment variable is used regardless of which language is being preprocessed.
+#   The remaining environment variables apply only when preprocessing the particular language indicated. Each specifies
+#   a list of directories to be searched as if specified with -isystem, but after any paths given with -isystem options
+#   on the command line.
+#   In all these variables, an empty element instructs the compiler to search its current working directory. Empty
+#   elements can appear at the beginning or end of a path. For instance, if the value of CPATH is :/special/include,
+#   that has the same effect as ‘-I. -I/special/include’.
+# LIBS
+#	Libraries for compiler
+# CFLAGS
+#	Extra flags to give to the C compiler.
+# CPPFLAGS
+# 	Extra flags to give to the C preprocessor and programs that use it (the C and Fortran compilers).
+# CXXFLAGS
+# 	Extra flags to give to the C++ compiler.
+#
 # Intel Compiler information setup.
-# INTEL_LIB_PATH = /opt/intel/system_studio_2020/lib/intel64_lin/
-# CPATH = ${ISS_ROOT}/compilers_and_libraries/linux/include
-# CPATH_MORE = ${ISS_ROOT}/compilers_and_libraries/linux/daal/include
-# DAALROOT = ${ISS_ROOT}/compilers_and_libraries/linux/daal
-# TBBROOT = ${ISS_ROOT}/compilers_and_libraries/linux/tbb
-# IE_COMPILER = ${ISS_ROOT}/compilers_and_libraries/linux/bin/intel64/icc
+# 	INTEL_LIB_PATH = /opt/intel/system_studio_2020/lib/intel64_lin/
+# 	CPATH = ${ISS_ROOT}/compilers_and_libraries/linux/include
+# 	CPATH_MORE = ${ISS_ROOT}/compilers_and_libraries/linux/daal/include
+# 	DAALROOT = ${ISS_ROOT}/compilers_and_libraries/linux/daal
+# 	TBBROOT = ${ISS_ROOT}/compilers_and_libraries/linux/tbb
+# 	IE_COMPILER = ${ISS_ROOT}/compilers_and_libraries/linux/bin/intel64/icc
 # Environment Setup
-#  source /opt/intel/system_studio_2020/bin/compilervars.sh -arch intel64 -platform linux
+# 	source /opt/intel/system_studio_2020/bin/compilervars.sh -arch intel64 -platform linux
 # GUI Location
-#  sh /opt/intel/system_studio_2020/iss_ide_eclipse-launcher.sh
+# 	sh /opt/intel/system_studio_2020/iss_ide_eclipse-launcher.sh
 # Example Compile
-# gcc main.o calcProgram.o -L $(INTEL_LIB_PATH) -lirc -lsvml -limf -o calcProgram
-# /permissive- /MP /GS /GA /debug:expr-source-pos /analyze /Wall /QxCOMMON-AVX512 /Gy /Zc:wchar_t /I"..\..\src\include" /I"..\..\src" /I"..\..\mpfr\dll\x64\Debug" /I"..\..\mpir\dll\x64\Debug" /I"..\..\mpfr" /Qconditional-branch:keep /Zi /O2 /Qopt-report:5 /Ob2 /Fd"x64\Release\vc141.pdb" /fp:precise /Quse-intel-optimized-headers /tune:skylake /Qunroll:1024 /fp:extended /D "NDEBUG" /D "_CONSOLE" /D "_UNICODE" /D "UNICODE" /Qipo /fp:except /Zc:forScope- /Qopt-matmul /arch:SSE2 /showIncludes /Oi /MT /QaxCOMMON-AVX512 /FC /Fa"x64\Release\" /EHsc /nologo /Fo"x64\Release\" /Qprof-dir "x64\Release\" /Ot /Fp"x64\Release\cpuBenchmark.pch"
+# 	gcc main.o calcProgram.o -L $(INTEL_LIB_PATH) -lirc -lsvml -limf -o calcProgram
+# 	/permissive- /MP /GS /GA /debug:expr-source-pos /analyze /Wall /QxCOMMON-AVX512 /Gy /Zc:wchar_t /I"..\..\src\include" /I"..\..\src" /I"..\..\mpfr\dll\x64\Debug" /I"..\..\mpir\dll\x64\Debug" /I"..\..\mpfr" /Qconditional-branch:keep /Zi /O2 /Qopt-report:5 /Ob2 /Fd"x64\Release\vc141.pdb" /fp:precise /Quse-intel-optimized-headers /tune:skylake /Qunroll:1024 /fp:extended /D "NDEBUG" /D "_CONSOLE" /D "_UNICODE" /D "UNICODE" /Qipo /fp:except /Zc:forScope- /Qopt-matmul /arch:SSE2 /showIncludes /Oi /MT /QaxCOMMON-AVX512 /FC /Fa"x64\Release\" /EHsc /nologo /Fo"x64\Release\" /Qprof-dir "x64\Release\" /Ot /Fp"x64\Release\cpuBenchmark.pch"
 ###############################################################################
 # Directory
 ###############################################################################
@@ -103,12 +141,67 @@ DEPS = -I$(IDIR) -I$(_DEPS)
 INCLUDES = $(DEPS)
 LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib
 INC = $(LIBINCLUDES) $(INCLUDES)
+
+# Detect if variables already exist
+# Path additions
+ifeq ($(origin LIBRARY_PATH),undefined)
+    $(info LIBRARY_PATH is undefined)
+else
+    INC = $(INC) $(LIBRARY_PATH)
+endif
+
+ifeq ($(origin LD_LIBRARY_PATH),undefined)
+    $(info LD_LIBRARY_PATH is undefined)
+else
+    INC = $(INC) $(LD_LIBRARY_PATH)
+endif
+
+ifeq ($(origin CPATH),undefined)
+    $(info CPATH is undefined)
+else
+    INC = $(INC) $(CPATH)
+endif
+
+ifeq ($(origin C_INCLUDE_PATH),undefined)
+    $(info C_INCLUDE_PATH is undefined)
+else
+    INC = $(INC) $(C_INCLUDE_PATH)
+endif
+
+ifeq ($(origin CPLUS_INCLUDE_PATH),undefined)
+    $(info CPLUS_INCLUDE_PATH is undefined)
+else
+    INC = $(INC) $(CPLUS_INCLUDE_PATH)
+endif
+
+ifeq ($(origin CFLAGS),undefined)
+    $(info CFLAGS is undefined)
+else
+    COMPILEFLAGS = $(COMPILEFLAGS) $(CFLAGS)
+endif
+
+ifeq ($(origin CPPFLAGS),undefined)
+    $(info CPPFLAGS is undefined)
+else
+    COMPILEFLAGS = $(COMPILEFLAGS) $(CPPFLAGS)
+endif
+
+ifeq ($(origin CXXFLAGS),undefined)
+    $(info CXXFLAGS is undefined)
+else
+    COMPILEFLAGS = $(COMPILEFLAGS) $(CXXFLAGS)
+endif
+
 ###############################################################################
 # Linking Libs
 ###############################################################################
-LDFLAGS_PTHREAD=-lpthread
+ifeq ($(origin LIBS),undefined)
+    $(info LIBS is undefined)
+else
+    LIBS = -lm $(LIBS)
+endif
 
-LIBS=-lm
+LDFLAGS_PTHREAD=-lpthread $(LIBS)
 
 # Compile with no main.
 NO_MAIN=-c
@@ -230,14 +323,26 @@ ICC_COMPILE_FLAGS= -g -std=c17 -fp-model=strict -static-intel
 ICL_COMPILE_FLAGS= /Qipo /QxHost /Qopt-report:3 /O3 /Ob2 /Oi /Ot /Wall /EHsc /MTd /GS- /Gy /arch:CORE-AVX2 /fp:strict /fp:except
 ICL_LINKER_FLAGS= /qipo_facs /LARGEADDRESSAWARE /DYNAMICBASE:NO
 
-ifeq ($(compiler),intel)
-    COMPILEFLAGS=$(ICC_COMPILE_FLAGS)
+ifeq ($(origin COMPILEFLAGS),undefined)
+	ifeq ($(compiler),intel)
+		COMPILEFLAGS = $(ICC_COMPILE_FLAGS)
+	else
+		ifeq ($(compiler),gnu_perf)
+			COMPILEFLAGS = $(GPP_COMPILE_FLAGS_PERFORMANCE)
+		else # ($(compiler),gnu)
+			COMPILEFLAGS = $(GPP_COMPILE_FLAGS)
+		endif
+	endif
 else
-    ifeq ($(compiler),gnu_perf)
-    	COMPILEFLAGS=$(GPP_COMPILE_FLAGS_PERFORMANCE)
-    else # ($(compiler),gnu)
-    	COMPILEFLAGS=$(GPP_COMPILE_FLAGS)
-    endif
+	ifeq ($(compiler),intel)
+		COMPILEFLAGS = $(COMPILEFLAGS) $(ICC_COMPILE_FLAGS)
+	else
+		ifeq ($(compiler),gnu_perf)
+			COMPILEFLAGS = $(COMPILEFLAGS) $(GPP_COMPILE_FLAGS_PERFORMANCE)
+		else # ($(compiler),gnu)
+			COMPILEFLAGS = $(COMPILEFLAGS) $(GPP_COMPILE_FLAGS)
+		endif
+	endif
 endif
 ###############################################################################
 # Exe files
@@ -265,10 +370,12 @@ NPROCS = $(shell grep -c 'processor' /proc/cpuinfo)
 NPROCS_DIV := $(shell echo ${NPROCS}/${DIV_VALUE} | bc)
 NPROCS_GREATEREQ_ZERO := $(shell echo ${NPROCS_DIV}\>${ZERO_VALUE} | bc)
 ifeq ($(NPROCS_GREATEREQ_ZERO),0)
-NPROCS_DIV = 1
-endif
+    NPROCS_DIV = 1
+else
 MAKEFLAGS += -j$(NPROCS)
+endif
 $(info Make runs in parallel, set to $(NPROCS), half is $(NPROCS_DIV). Comment out MAKEFLAGS is you want serial.)
+$(info Make flags are: $(MAKEFLAGS))
 ###############################################################################
 # Target
 ###############################################################################
