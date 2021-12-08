@@ -1045,15 +1045,14 @@ bool threadContextMeta_set(threadContextMeta_t *threadContextData,
 *****************************************************************************/
 #ifndef LIBRARY_MODE
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[]) {
 #elif (LIBRARY_MODE >= 0)
 #pragma message("LIBRARY_MODE")
-int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
+int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]) {
 #else // LIBRARY_MODE is defined
 #pragma message("LIBRARY_MODE DEFAULT")
-int testharness_CPUBenchmarkParallel_main(int argc, char *argv[])
+int testharness_CPUBenchmarkParallel_main(int argc, char *argv[]) {
 #endif // LIBRARY_MODE
-{
   showUsage();
   printArgs(argc, argv);
   const size_t waitTime = 6;
