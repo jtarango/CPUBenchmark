@@ -147,56 +147,56 @@ INC = $(LIBINCLUDES) $(INCLUDES)
 ifeq ($(origin LIBRARY_PATH),undefined)
     $(info LIBRARY_PATH is undefined)
 else
-    INC = $(INC) $(LIBRARY_PATH)
+    INC += $(LIBRARY_PATH)
 endif
 
 ifeq ($(origin LD_LIBRARY_PATH),undefined)
     $(info LD_LIBRARY_PATH is undefined)
 else
-    INC = $(INC) $(LD_LIBRARY_PATH)
+    INC += $(LD_LIBRARY_PATH)
 endif
 
 ifeq ($(origin CPATH),undefined)
     $(info CPATH is undefined)
 else
-    INC = $(INC) $(CPATH)
+    INC += $(CPATH)
 endif
 
 ifeq ($(origin C_INCLUDE_PATH),undefined)
     $(info C_INCLUDE_PATH is undefined)
 else
-    INC = $(INC) $(C_INCLUDE_PATH)
+    INC += $(C_INCLUDE_PATH)
 endif
 
 ifeq ($(origin CPLUS_INCLUDE_PATH),undefined)
     $(info CPLUS_INCLUDE_PATH is undefined)
 else
-    INC = $(INC) $(CPLUS_INCLUDE_PATH)
+    INC += $(CPLUS_INCLUDE_PATH)
 endif
 
 ifeq ($(origin COMPILEFLAGS),undefined)
     $(info COMPILEFLAGS is undefined)
     COMPILEFLAGS =
 else
-    COMPILEFLAGS = $(COMPILEFLAGS) $(CFLAGS)
+    COMPILEFLAGS += $(CFLAGS)
 endif
 
 ifeq ($(origin CFLAGS),undefined)
     $(info CFLAGS is undefined)
 else
-    COMPILEFLAGS = $(COMPILEFLAGS) $(CFLAGS)
+    COMPILEFLAGS += $(CFLAGS)
 endif
 
 ifeq ($(origin CPPFLAGS),undefined)
     $(info CPPFLAGS is undefined)
 else
-    COMPILEFLAGS = $(COMPILEFLAGS) $(CPPFLAGS)
+    COMPILEFLAGS += $(CPPFLAGS)
 endif
 
 ifeq ($(origin CXXFLAGS),undefined)
     $(info CXXFLAGS is undefined)
 else
-    COMPILEFLAGS = $(COMPILEFLAGS) $(CXXFLAGS)
+    COMPILEFLAGS += $(CXXFLAGS)
 endif
 
 ###############################################################################
@@ -206,7 +206,7 @@ ifeq ($(origin LIBS),undefined)
     $(info LIBS is undefined)
     LIBS := -lm
 else
-    LIBS := $(LIBS) -lm
+    LIBS += -lm
 endif
 
 LDFLAGS_PTHREAD=-lpthread $(LIBS)
@@ -343,12 +343,12 @@ ifeq ($(origin COMPILEFLAGS),undefined)
 	endif
 else
 	ifeq ($(compiler),intel)
-		COMPILEFLAGS = $(COMPILEFLAGS) $(ICC_COMPILE_FLAGS)
+		COMPILEFLAGS += $(ICC_COMPILE_FLAGS)
 	else
 		ifeq ($(compiler),gnu_perf)
-			COMPILEFLAGS = $(COMPILEFLAGS) $(GPP_COMPILE_FLAGS_PERFORMANCE)
+			COMPILEFLAGS += $(GPP_COMPILE_FLAGS_PERFORMANCE)
 		else # ($(compiler),gnu)
-			COMPILEFLAGS = $(COMPILEFLAGS) $(GPP_COMPILE_FLAGS)
+			COMPILEFLAGS += $(GPP_COMPILE_FLAGS)
 		endif
 	endif
 endif
