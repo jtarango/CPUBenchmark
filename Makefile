@@ -174,6 +174,13 @@ else
     INC = $(INC) $(CPLUS_INCLUDE_PATH)
 endif
 
+ifeq ($(origin COMPILEFLAGS),undefined)
+    $(info COMPILEFLAGS is undefined)
+    COMPILEFLAGS =
+else
+    COMPILEFLAGS = $(COMPILEFLAGS) $(CFLAGS)
+endif
+
 ifeq ($(origin CFLAGS),undefined)
     $(info CFLAGS is undefined)
 else
@@ -197,8 +204,9 @@ endif
 ###############################################################################
 ifeq ($(origin LIBS),undefined)
     $(info LIBS is undefined)
+    LIBS := -lm
 else
-    LIBS = $(LIBS) -lm
+    LIBS := $(LIBS) -lm
 endif
 
 LDFLAGS_PTHREAD=-lpthread $(LIBS)
