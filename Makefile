@@ -433,7 +433,7 @@ printpdf: create_dirs
 .PHONY: printpdf
 
 # Create a tar ball for project
-turnin: create_dirs print printpdf
+turnin: create_dirs print printpdf cpuBenchmark cpuBenchmarkParallel
 	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES) $(BDIR)/$(TEST_CPP_BIN).a $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 .PHONY: turnin
 
