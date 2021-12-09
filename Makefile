@@ -379,8 +379,10 @@ NPROCS_DIV := $(shell echo ${NPROCS}/${DIV_VALUE} | bc)
 NPROCS_GREATEREQ_ZERO := $(shell echo ${NPROCS_DIV}\>${ZERO_VALUE} | bc)
 ifeq ($(NPROCS_GREATEREQ_ZERO),0)
     NPROCS_DIV = 1
+    MAKEFLAGS += -j1
 else
-MAKEFLAGS += -j$(NPROCS)
+    # MAKEFLAGS += -j$(NPROCS)
+    MAKEFLAGS += -j1
 endif
 $(info Make runs in parallel, set to $(NPROCS), half is $(NPROCS_DIV). Comment out MAKEFLAGS is you want serial.)
 $(info Make flags are: $(MAKEFLAGS))
