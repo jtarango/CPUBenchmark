@@ -177,8 +177,6 @@ endif
 ifeq ($(origin COMPILEFLAGS),undefined)
     $(info COMPILEFLAGS is undefined)
     COMPILEFLAGS =
-else
-    COMPILEFLAGS += $(CFLAGS)
 endif
 
 ifeq ($(origin CFLAGS),undefined)
@@ -392,7 +390,7 @@ $(info Make flags are: $(MAKEFLAGS))
 .DEFAULT_GOAL := all
 
 # Do all, except run and debugging...
-all: create_dirs print printpdf turnin compile_all
+all: create_dirs compile_all print printpdf turnin
 	$(info Making all. Fin.)
     $(info MAKEFILE_LIST: $(MAKEFILE_LIST))
     $(info          path: $(path))
@@ -426,7 +424,7 @@ print: create_dirs
 	$(A2PS) -M letter --line-numbers=1 --pro=color --highlight-level=light --pretty-print -o $(TARBALLDIR)/$(PSPRINT) $(FILES)
 .PHONY: print
 
-printpdf: create_dirs
+printpdf: create_dirs print
 	$(ENSCRIPT) -2 --fancy-header --line-numbers=1 --truncate-lines \
 	--word-wrap --style=emacs --tabsize=3 --landscape $(FILES) \
 	-o - | ps2pdfwr - $(TARBALLDIR)/$(PDFPRINT)
