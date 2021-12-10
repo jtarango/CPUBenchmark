@@ -156,11 +156,11 @@ else
     INC += $(LD_LIBRARY_PATH)
 endif
 
-ifeq ($(origin CPATH),undefined)
-    $(info CPATH is undefined)
-else
-    INC += $(CPATH)
-endif
+#ifeq ($(origin CPATH),undefined)
+#    $(info CPATH is undefined)
+#else
+#    INC += $(CPATH)
+#endif
 
 ifeq ($(origin C_INCLUDE_PATH),undefined)
     $(info C_INCLUDE_PATH is undefined)
@@ -182,6 +182,7 @@ endif
 ifeq ($(origin CFLAGS),undefined)
     $(info CFLAGS is undefined)
 else
+    $(info CFLAGS is defined)
     COMPILEFLAGS += $(CFLAGS)
 endif
 
