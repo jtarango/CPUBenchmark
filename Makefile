@@ -316,13 +316,13 @@ endif
 STRICT_FLAGS=-pedantic
 
 # GCC Compile with no optimizations, debug, warnings, stack split feature, static compilation, and FP restrictions for reproducible results. For fastest -fprofile-generate then -fprofile-use
-GCC_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -static -ffloat-store
-GCC_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu18		-O0               -fsplit-stack -m64 -static -ffloat-store -v -g
-GCC_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -static -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
+GCC_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store
+GCC_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu18		-O0               -fsplit-stack -m64 -ffloat-store -v -g
+GCC_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
 # GPP
-GPP_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -static -ffloat-store
-GPP_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu++17	-O0               -fsplit-stack -m64 -static -ffloat-store -v -g
-GPP_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -static -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
+GPP_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store
+GPP_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu++17	-O0               -fsplit-stack -m64 -ffloat-store -v -g
+GPP_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
 # Intel compiler with float precise mode and static compilation.
 ICC_COMPILE_FLAGS= -g -std=c17 -fp-model=strict -static-intel
 # Windows compilation flags and linker flags
