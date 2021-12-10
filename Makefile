@@ -144,59 +144,47 @@ INC = $(LIBINCLUDES) $(INCLUDES)
 
 # Detect if variables already exist
 # Path additions
-ifeq ($(origin LIBRARY_PATH),undefined)
-    $(info LIBRARY_PATH is undefined)
-else
-    INC += $(LIBRARY_PATH)
-endif
-
-ifeq ($(origin LD_LIBRARY_PATH),undefined)
-    $(info LD_LIBRARY_PATH is undefined)
-else
-    INC += $(LD_LIBRARY_PATH)
-endif
-
+#ifeq ($(origin LIBRARY_PATH),undefined)
+#    $(info LIBRARY_PATH is undefined)
+#else
+#    INC += $(LIBRARY_PATH)
+#endif
+#
+#ifeq ($(origin LD_LIBRARY_PATH),undefined)
+#    $(info LD_LIBRARY_PATH is undefined)
+#else
+#    INC += $(LD_LIBRARY_PATH)
+#endif
+#
 #ifeq ($(origin CPATH),undefined)
 #    $(info CPATH is undefined)
 #else
 #    INC += $(CPATH)
 #endif
-
-ifeq ($(origin C_INCLUDE_PATH),undefined)
-    $(info C_INCLUDE_PATH is undefined)
-else
-    INC += $(C_INCLUDE_PATH)
-endif
-
-ifeq ($(origin CPLUS_INCLUDE_PATH),undefined)
-    $(info CPLUS_INCLUDE_PATH is undefined)
-else
-    INC += $(CPLUS_INCLUDE_PATH)
-endif
-
-ifeq ($(origin COMPILEFLAGS),undefined)
-    $(info COMPILEFLAGS is undefined)
-    COMPILEFLAGS =
-endif
-
-ifeq ($(origin CFLAGS),undefined)
-    $(info CFLAGS is undefined)
-else
-    $(info CFLAGS is defined)
-    COMPILEFLAGS += $(CFLAGS)
-endif
-
-ifeq ($(origin CPPFLAGS),undefined)
-    $(info CPPFLAGS is undefined)
-else
-    COMPILEFLAGS += $(CPPFLAGS)
-endif
-
-ifeq ($(origin CXXFLAGS),undefined)
-    $(info CXXFLAGS is undefined)
-else
-    COMPILEFLAGS += $(CXXFLAGS)
-endif
+#
+#ifeq ($(origin C_INCLUDE_PATH),undefined)
+#    $(info C_INCLUDE_PATH is undefined)
+#else
+#    INC += $(C_INCLUDE_PATH)
+#endif
+#
+#ifeq ($(origin CPLUS_INCLUDE_PATH),undefined)
+#    $(info CPLUS_INCLUDE_PATH is undefined)
+#else
+#    INC += $(CPLUS_INCLUDE_PATH)
+#endif
+#
+#ifeq ($(origin CPPFLAGS),undefined)
+#    $(info CPPFLAGS is undefined)
+#else
+#    COMPILEFLAGS += $(CPPFLAGS)
+#endif
+#
+#ifeq ($(origin CXXFLAGS),undefined)
+#    $(info CXXFLAGS is undefined)
+#else
+#    COMPILEFLAGS += $(CXXFLAGS)
+#endif
 
 ###############################################################################
 # Linking Libs
@@ -351,6 +339,14 @@ else
 		endif
 	endif
 endif
+
+ifeq ($(origin CFLAGS),undefined)
+    $(info CFLAGS is undefined)
+else
+    $(info CFLAGS is defined)
+    COMPILEFLAGS += $(CFLAGS)
+endif
+
 ###############################################################################
 # Exe files
 ###############################################################################
