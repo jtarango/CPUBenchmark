@@ -136,10 +136,26 @@ PLTDIR=$(CURRENT_PATH)src/plots
 # Files such as *.h, $(error none yet.)
 _DEPS = $(ILDIR)
 # DEPS = $(patsubst %, -I$(IDIR)/%, -I$(_DEPS))
-DEPS = -I$(IDIR) -I$(_DEPS)
+
+ifeq ($(origin CFLAGS),undefined)
+    $(info CFLAGS is undefined)
+    DEPS = -I$(IDIR) -I$(_DEPS)
+else
+    $(info CFLAGS is undefined)
+    DEPS = -I$(IDIR) -I$(_DEPS) $(CFLAGS)
+endif
+
 # Compile order -IprogramA -IprogramA -IprogramA
 INCLUDES = $(DEPS)
+
+ifeq ($(origin LPATH),undefined)
+    $(info LPATH is undefined)
 LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib
+else
+    $(info LPATH is undefined)
+LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib $(LPATH)
+endif
+
 INC = $(LIBINCLUDES) $(INCLUDES)
 
 # Detect if variables already exist
