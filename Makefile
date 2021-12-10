@@ -31,7 +31,7 @@
 #  .so, .o            | .dll                 | Object that can be loaded at runtime (Similar to DLL)
 #  .a                 | .lib                 | Static library
 #  [none], .elf(rare),| .exe, .com(rare)     | Linux executables
-#    .bin(rare)       |                      |
+#    .bin(rare), .out |                      |
 #  .sh                | .bat                 | Shell script
 #  .exe               | .exe                 | Mono application, Wine application
 #  .deb               | .msi                 | Installer package for Debian/Ubuntu releases
@@ -120,6 +120,11 @@ TEST_CPP_FILE=$(SRCDIR)/cpuBenchmark.cpp
 TEST_PARALLEL_CPP_BIN=cpuBenchmarkParallel
 TEST_PARALLEL_CPP_FILE=$(SRCDIR)/cpuBenchmarkParallel.cpp
 
+# Extensions for program version.
+EXT_DYNAMIC := .so
+EXT_STATIC := .a
+EXT_APPLICATION := .out
+
 # Lib Dir
 LIBDIR=$(BDIR)/libs
 
@@ -150,10 +155,10 @@ INCLUDES = $(DEPS)
 
 ifeq ($(origin LPATH),undefined)
     $(info LPATH is undefined)
-LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib
+    LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib
 else
     $(info LPATH is undefined)
-LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib $(LPATH)
+    LIBINCLUDES = -L$(LIBDIR) -L$(IDIR)/lib $(LPATH)
 endif
 
 INC = $(LIBINCLUDES) $(INCLUDES)
@@ -207,9 +212,6 @@ INC = $(LIBINCLUDES) $(INCLUDES)
 ###############################################################################
 ifeq ($(origin LIBS),undefined)
     $(info LIBS is undefined)
-    LIBS := -lm
-else
-    LIBS += -lm
 endif
 
 # Compile with no main.
@@ -316,21 +318,21 @@ endif
 # Verbose mode for compiler debug.
 # -pedantic -ansi
 # Strict language flags base on extensions for maximal portability by complying to the letter of the standard by generating warnings.
-STRICT_FLAGS=-pedantic
+STRICT_FLAGS:=-pedantic
 
 # GCC Compile with no optimizations, debug, warnings, stack split feature, static compilation, and FP restrictions for reproducible results. For fastest -fprofile-generate then -fprofile-use
-GCC_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store
-GCC_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu18		-O0               -fsplit-stack -m64 -ffloat-store -v -g
-GCC_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
+GCC_COMPILE_FLAGS_PERFORMANCE:=                 -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store
+GCC_COMPILE_FLAGS:=                             -Wno-endif-labels -std=gnu18		-O0               -fsplit-stack -m64 -ffloat-store -v -g
+GCC_COMPILE_FLAGS_OVERLOAD:= -fprofile-generate -Wno-endif-labels -std=gnu18		-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
 # GPP
-GPP_COMPILE_FLAGS_PERFORMANCE=                 -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store
-GPP_COMPILE_FLAGS=                             -Wno-endif-labels -std=gnu++17	-O0               -fsplit-stack -m64 -ffloat-store -v -g
-GPP_COMPILE_FLAGS_OVERLOAD= -fprofile-generate -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
+GPP_COMPILE_FLAGS_PERFORMANCE:=                 -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store
+GPP_COMPILE_FLAGS:=                             -Wno-endif-labels -std=gnu++17	-O0               -fsplit-stack -m64 -ffloat-store -v -g
+GPP_COMPILE_FLAGS_OVERLOAD:= -fprofile-generate -Wno-endif-labels -std=gnu++17	-O3 -march=native -fsplit-stack -m64 -ffloat-store -v -g -Wall -Werror -Wfatal-errors $STRICT_FLAGS
 # Intel compiler with float precise mode and static compilation.
-ICC_COMPILE_FLAGS= -g -std=c17 -fp-model=strict -static-intel
+ICC_COMPILE_FLAGS:= -g -std=c17 -fp-model=strict -static-intel
 # Windows compilation flags and linker flags
-ICL_COMPILE_FLAGS= /Qipo /QxHost /Qopt-report:3 /O3 /Ob2 /Oi /Ot /Wall /EHsc /MTd /GS- /Gy /arch:CORE-AVX2 /fp:strict /fp:except
-ICL_LINKER_FLAGS= /qipo_facs /LARGEADDRESSAWARE /DYNAMICBASE:NO
+ICL_COMPILE_FLAGS:= /Qipo /QxHost /Qopt-report:3 /O3 /Ob2 /Oi /Ot /Wall /EHsc /MTd /GS- /Gy /arch:CORE-AVX2 /fp:strict /fp:except
+ICL_LINKER_FLAGS:= /qipo_facs /LARGEADDRESSAWARE /DYNAMICBASE:NO
 
 ifeq ($(origin COMPILEFLAGS),undefined)
 	ifeq ($(compiler),intel)
@@ -423,7 +425,7 @@ create_dirs:
 
 # Remove unnecessary files
 clean:
-	$(RM) -rf *~ $(TARBALLDIR)/*~ $(BDIR)/*.a $(ODIR)/*.o $(LIBDIR)/*.so $(IDIR)/*.so $(ILDIR)/*.so
+	$(RM) -rf *~ $(TARBALLDIR)/*~ $(BDIR)/*.a $(BDIR)/*.out $(ODIR)/*.o $(LIBDIR)/*.so $(IDIR)/*.so $(ILDIR)/*.so
 	$(RM) -rf $(PSPRINT) $(PDFPRINT) $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/*.pdf $(TARBALLDIR)/*.ps $(FILES_TO_CLEAN) $(FILES_TO_CLEAN_MOVED)
 .PHONY: clean
 
@@ -443,7 +445,7 @@ printpdf: create_dirs print
 
 # Create a tar ball for project
 turnin: create_dirs print printpdf cpuBenchmark cpuBenchmarkParallel
-	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES) $(BDIR)/$(TEST_CPP_BIN).a $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(TR) -czvf $(TARBALLDIR)/$(TARNAME) $(TARBALLDIR)/$(PSPRINT) $(TARBALLDIR)/$(PDFPRINT) $(FILES) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION) $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: turnin
 
 ########################################################################################################################
@@ -454,15 +456,32 @@ compile_all: create_dirs cpuBenchmark cpuBenchmarkParallel
 	$(info Compiling all...)
 .PHONY: compile_all
 
+cpuBenchmark: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmark:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS := -ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmark: create_dirs
 	$(info Compile cpuBenchmark testharness)
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION) $(TEST_CPP_FILE) $(LIBS)
 .PHONY: cpuBenchmark
 
+cpuBenchmarkParallel: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmarkParallel:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS:=-ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmarkParallel: create_dirs
 	$(info Compile cpuBenchmark parallel testharness)
-	$(LIBS) += lpthread
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LDFLAGS_PTHREAD) $(LIBS)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION) $(TEST_PARALLEL_CPP_FILE) -lpthread $(LIBS)
 .PHONY: cpuBenchmarkParallel
 
 ########################################################################################################################
@@ -470,32 +489,49 @@ cpuBenchmarkParallel: create_dirs
 ########################################################################################################################
 run_cpuBenchmark: create_dirs cpuBenchmark
 	$(info Run cpuBenchmark testharness)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: run_cpuBenchmark
 
 run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
 	$(info Run cpuBenchmarkParallel testharness)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: run_cpuBenchmarkParallel
 
 ########################################################################################################################
 # Performance profile execute and compile
 ########################################################################################################################
+cpuBenchmarkFaster: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmarkFaster:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS := -ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmarkFaster: create_dirs
 	$(info Making cpuBenchmark program faster by -fprofile-generate -fprofile-use)
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN).a $(TEST_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN).a
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION) $(TEST_CPP_FILE) $(LIBS)
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION) $(TEST_CPP_FILE) $(LIBS)
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: cpuBenchmarkFaster
 
+cpuBenchmarkParallelFaster: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmarkParallelFaster:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS:=-ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmarkParallelFaster: create_dirs
 	$(info Making cpuBenchmarkParallel program faster by -fprofile-generate -fprofile-use)
-	$(LIBS) += lpthread
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
-	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
-	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION) $(TEST_PARALLEL_CPP_FILE) -lpthread $(LIBS)
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION)
+	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION) $(TEST_PARALLEL_CPP_FILE) -lpthread $(LIBS)
+	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: cpuBenchmarkParallelFaster
 
 ########################################################################################################################
@@ -507,10 +543,10 @@ VALGRIND_FLAGS=--undef-value-errors=no --main-stacksize=99999999 --max-stackfram
 GRIND_LOG=Grinder.log
 cpuBenchmarkGrinder: create_dirs cpuBenchmark
 	$(info Debugging program log is cpuBenchmarkGrinder.log)
-	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_CPP_BIN).a
+	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: cpuBenchmarkGrinder
 
 cpuBenchmarkParallelGrinder: create_dirs cpuBenchmarkParallel
 	$(info Debugging program log is cpuBenchmarkParallelGrinder.log)
-	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
+	$(FPBENCH_GRIND) $(VALGRIND_FLAGS) --log-file=$(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(GRIND_LOG) $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: cpuBenchmarkParallelGrinder
