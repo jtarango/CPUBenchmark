@@ -500,6 +500,15 @@ run_cpuBenchmarkParallel: create_dirs cpuBenchmarkParallel
 ########################################################################################################################
 # Performance profile execute and compile
 ########################################################################################################################
+cpuBenchmarkFaster: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmarkFaster:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS := -ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmarkFaster: create_dirs
 	$(info Making cpuBenchmark program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION) $(TEST_CPP_FILE) $(LIBS)
@@ -508,6 +517,15 @@ cpuBenchmarkFaster: create_dirs
 	$(UNLIMITED_POWER) $(BDIR)/$(TEST_CPP_BIN)$(EXT_APPLICATION)
 .PHONY: cpuBenchmarkFaster
 
+cpuBenchmarkParallelFaster: COMPILEFLAGS += -fno-strict-aliasing
+cpuBenchmarkParallelFaster:
+	ifeq ($(origin LIBS),undefined)
+		$(info LIBS is undefined)
+		LIBS:=-ldl
+	else
+		$(info LIBS is defined)
+		$(LIBS)+=-ldl
+	endif
 cpuBenchmarkParallelFaster: create_dirs
 	$(info Making cpuBenchmarkParallel program faster by -fprofile-generate -fprofile-use)
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN)$(EXT_APPLICATION) $(TEST_PARALLEL_CPP_FILE) -lpthread $(LIBS)
