@@ -212,8 +212,6 @@ else
     LIBS += -lm
 endif
 
-LDFLAGS_PTHREAD=-lpthread $(LIBS)
-
 # Compile with no main.
 NO_MAIN=-c
 
@@ -463,6 +461,7 @@ cpuBenchmark: create_dirs
 
 cpuBenchmarkParallel: create_dirs
 	$(info Compile cpuBenchmark parallel testharness)
+	$(LIBS) += lpthread
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)                                   -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LDFLAGS_PTHREAD) $(LIBS)
 .PHONY: cpuBenchmarkParallel
 
@@ -492,6 +491,7 @@ cpuBenchmarkFaster: create_dirs
 
 cpuBenchmarkParallelFaster: create_dirs
 	$(info Making cpuBenchmarkParallel program faster by -fprofile-generate -fprofile-use)
+	$(LIBS) += lpthread
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-generate -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
 	$(UNLIMITED_POWER) $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a
 	$(COMPILER)            $(COMPILEFLAGS) $(INC)    -fprofile-use      -O3 -march=native -o $(BDIR)/$(TEST_PARALLEL_CPP_BIN).a $(TEST_PARALLEL_CPP_FILE) $(LIBS)
