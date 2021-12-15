@@ -25,8 +25,7 @@ extern "C++" {
 #define _CPUBENCHMARK_CPP_
 
 #include <stdio.h>
-// #include <stdlib.h>
-// #include <limits.h>
+#include <limits.h>
 #ifdef _WIN32
 #include <sys/timeb.h>
 #else
@@ -34,6 +33,8 @@ extern "C++" {
 #endif
 #include <cmath>
 #include <cstdlib>
+#include <cstdint>
+
 
 /*======================================================================================================================
  * Private Functions
@@ -41,13 +42,15 @@ extern "C++" {
 int printFullPath(const char *partialPath);
 double mygettime(void);
 template< typename Type > void my_test(const char* name);
+void copyFileContents(char* fileRead, char* fileWrite, uint8_t debug);
 int main(void);
 
 /*======================================================================================================================
  * Shared constants and variables
  * ===================================================================================================================*/
 #define PATH_MAX 4096
-volatile size_t DATASET_SIZE = 4294967291; // 100000007;
+#define CHAR_BUFFER_SIZE 1024
+volatile size_t DATASET_SIZE = USHRT_MAX; // 4294967291; // 100000007;
 const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
 FILE *writingFileContext = (FILE *)calloc(1, sizeof(FILE));
 
@@ -285,13 +288,57 @@ void my_test(const char* name) {
 	fprintf(writingFileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, mygettime() - t1, (unsigned long long int) (DATASET_SIZE * 10 * 3), (int)v & 1);
 }
 
+void copyFileContents(char* fileRead, char* fileWrite, uint8_t debug) {
+  FILE *fptrRead, *fptrWrite;
+  char charBuf;
+
+  // Open one file for reading
+  fptrRead = fopen(fileRead, "r");
+  if (NULL == fptrRead) {
+    printf("Cannot open file %s \n", fileRead);
+    exit(0);
+  }
+
+  // Open another file for writing
+  fptrWrite = fopen(fileWrite, "w");
+  if (NULL == fptrWrite) {
+    printf("Cannot open file %s \n", fileWrite);
+    exit(0);
+  }
+
+  // Read contents from file
+  charBuf = fgetc(fptrRead);
+  while (EOF != charBuf) {
+    fputc(charBuf, fptrWrite);
+    charBuf = fgetc(fptrRead);
+  }
+
+  if (0 < debug) {
+    printf("\nContents copied to %s", fileWrite);
+  }
+
+  fclose(fptrRead);
+  fclose(fptrWrite);
+  return;
+}
+
 int main(void) {
-	// Simple delete of old file.
-	writingFileContext = fopen(filenameCPUData, "w");
+  char filePath[CHAR_BUFFER_SIZE];
+  char randomNumberCStr[CHAR_BUFFER_SIZE];
+  char genFile[CHAR_BUFFER_SIZE];
+  uint32_t randomNumber;
+  bool fileExistsStatus;
+
+  srand((unsigned int)(mygettime()));   // Initialization, should only be called once.
+  // Temp file with path
+  tmpnam(filePath);
+  // Simple delete of old file.
+	writingFileContext = fopen(filePath, "w");
 	fprintf(writingFileContext, "\n");
 	fclose(writingFileContext);
 	// Create new file to append data.
-	writingFileContext = fopen(filenameCPUData, "a+");
+  printf("Opening %s for writing.\n", filePath);
+	writingFileContext = fopen(filePath, "a+");
 	fprintf(writingFileContext, "Type, Operation Set, Time for Operations, Count of Operations Performed, Random Last Bit of Computation Chain\n");
 	for (volatile size_t i = 0; i < 64; i++) {
 		my_test< volatile signed char >("signed char");
@@ -308,8 +355,21 @@ int main(void) {
 		my_test< volatile double >("double");
 		my_test< volatile long double >("long double");
 	}
-	printFullPath(filenameCPUData);
-	fclose(writingFileContext);
+
+  fileExistsStatus = (NULL != fopen(filenameCPUData, "r"));
+  if (fileExistsStatus) {
+    randomNumber = (uint32_t) rand(); // Returns a pseudo-random integer between 0 and RAND_MAX.
+    sprintf(randomNumberCStr, "cpu_benchmark_%d.csv", randomNumber);
+    copyFileContents(filePath, randomNumberCStr, 0);
+    printFullPath(randomNumberCStr);
+  }
+  else {
+    copyFileContents(filePath, (char*)filenameCPUData, 0);
+    printFullPath(filenameCPUData);
+  }
+  // fclose(writingFileContext);
+  remove(filePath);
+
 	return 0;
 }
 
