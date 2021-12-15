@@ -1,3 +1,29 @@
+/*
+ * Written by Joseph Tarango. The original work was to develop a dynamic data
+ * type for precision related code in embedded processors. Joseph
+ * Tarango webpages can be found at http://www.josephtarango.com
+ *
+ *THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ *INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ *AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ *THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ *ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ =============================================================================*/
+// #pragma once // Only used in header files.
+// #pragma once // Only used in header files.
+
+#ifndef __cplusplus
+extern "C++" {
+#endif // __cplusplus
+
+#ifndef _CPUBENCHMARK_CPP_
+#define _CPUBENCHMARK_CPP_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -9,14 +35,33 @@
 #include <cmath>
 #include <time.h>
 #include <cstdlib>
+#include <cstdint>
 
-#define CHAR_BUFFER_SIZE 1024
+/*======================================================================================================================
+ * Private Functions
+ * ===================================================================================================================*/
+int printFullPath(const char *partialPath);
+double mygettime(void);
+template< typename Type > void my_test(const char* name);
+void copyFileContents(char* fileRead, char* fileWrite, uint8_t debug);
+int main(void);
+
+/*======================================================================================================================
+ * Shared constants and variables
+ * ===================================================================================================================*/
 #define PATH_MAX 4096
-volatile size_t DATASET_SIZE = 4294967291; // 100000007;
+#define CHAR_BUFFER_SIZE 1024
+volatile size_t DATASET_SIZE = USHRT_MAX; // 4294967291; // 100000007;
 const char filenameCPUData[] = "cpu_benchmark.csv"; // Random self generation file name.
 FILE *writingFileContext = (FILE *)calloc(1, sizeof(FILE));
 
-int printFullPath(const char * partialPath)
+/*======================================================================================================================
+ * Definitions
+ * ===================================================================================================================*/
+// Ignore data flow analysis is to complex in IDE
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCDFAInspection"
+int printFullPath(const char *partialPath)
 {
 	int rc = 0;
 	char *fullPath = (char *)calloc(PATH_MAX, sizeof(char));
@@ -251,13 +296,55 @@ void my_test(const char* name) {
 	fprintf(writingFileContext, "%s, sq/sqrt/mul, %f, %llu, [%d]\n", name, mygettime() - t1, (unsigned long long int) (DATASET_SIZE * 10 * 3), (int)v & 1);
 }
 
-int main() {
+void copyFileContents(char* fileRead, char* fileWrite, uint8_t debug) {
+  FILE *fptrRead, *fptrWrite;
+  char charBuf;
+
+  // Open one file for reading
+  fptrRead = fopen(fileRead, "r");
+  if (NULL == fptrRead) {
+    printf("Cannot open file %s \n", fileRead);
+    exit(0);
+  }
+
+  // Open another file for writing
+  fptrWrite = fopen(fileWrite, "w");
+  if (NULL == fptrWrite) {
+    printf("Cannot open file %s \n", fileWrite);
+    exit(0);
+  }
+
+  // Read contents from file
+  charBuf = fgetc(fptrRead);
+  while (EOF != charBuf) {
+    fputc(charBuf, fptrWrite);
+    charBuf = fgetc(fptrRead);
+  }
+
+  if (0 < debug) {
+    printf("\nContents copied to %s", fileWrite);
+  }
+
+  fclose(fptrRead);
+  fclose(fptrWrite);
+  return;
+}
+int main(void) {
+  char filePath[CHAR_BUFFER_SIZE];
+  char randomNumberCStr[CHAR_BUFFER_SIZE];
+  char genFile[CHAR_BUFFER_SIZE];
+  uint32_t randomNumber;
+  bool fileExistsStatus;
+  
+  srand((unsigned int)(mygettime()));   // Initialization, should only be called once.
+  tmpnam(filePath);
 	// Simple delete of old file.
-	writingFileContext = fopen(filenameCPUData, "w");
+	writingFileContext = fopen(filePath, "w");
 	fprintf(writingFileContext, "\n");
 	fclose(writingFileContext);
 	// Create new file to append data.
-	writingFileContext = fopen(filenameCPUData, "a+");
+	printf("Opening %s for writing.\n", filePath);
+	writingFileContext = fopen(filePath, "a+");
 	fprintf(writingFileContext, "Type, Operation Set, Time for Operations, Count of Operations Performed, Random Last Bit of Computation Chain\n");
 	for (volatile size_t i = 0; i < 64; i++) {
 		my_test< volatile signed char >("signed char");
@@ -274,7 +361,26 @@ int main() {
 		my_test< volatile double >("double");
 		my_test< volatile long double >("long double");
 	}
+
+  fileExistsStatus = (NULL != fopen(filenameCPUData, "r"));
+  if (fileExistsStatus) {
+    randomNumber = (uint32_t) rand(); // Returns a pseudo-random integer between 0 and RAND_MAX.
+    sprintf(randomNumberCStr, "cpu_benchmark_%d.csv", randomNumber);
+    copyFileContents(filePath, randomNumberCStr, 0);
+    printFullPath(randomNumberCStr);
+  }
+  else {
+    copyFileContents(filePath, (char*)filenameCPUData, 0);
 	printFullPath(filenameCPUData);
-	fclose(writingFileContext);
+  }
+  // fclose(writingFileContext);
+  remove(filePath);
+
 	return 0;
 }
+
+#endif //_CPUBENCHMARK_CPP_
+
+#ifndef __cplusplus
+}
+#endif // __cplusplus
